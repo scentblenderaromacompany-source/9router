@@ -551,45 +551,44 @@ No local Chrome needed. Get a free API key:
 
 ### Generate Image via Cloud Browser
 
+**Option A: Free (No Login Required) - Pollinations.ai**
+
+```bash
+# Direct URL - generates image automatically
+curl -L -o image.png "https://image.pollinations.ai/prompt/YOUR_PROMPT?width=1024&height=1024&nologo=true"
+```
+
+Or with browser-harness:
 ```bash
 browser-harness <<'PY'
-import time
+prompt = "A serene Japanese garden with cherry blossoms"
+encoded = prompt.replace(" ", "%20")
+url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&nologo=true"
+new_tab(url)
+wait_for_load()
+time.sleep(10)
+capture_screenshot("/tmp/generated.png")
+PY
+```
 
-# Start remote browser
+**Option B: ChatGPT (Requires Login)**
+
+```bash
+# Create browser
+BU_AUTOSPAWN=1 browser-harness <<'PY'
 daemon = start_remote_daemon("image-gen", timeout=300)
 print(f"Browser URL: {daemon}")
+PY
 
-# Navigate to ChatGPT
+# Connect and use (replace BROWSER_ID)
+export BU_CDP_WS="wss://BROWSER_ID.cdp.browser-use.com"
+browser-harness <<'PY'
+import time
 new_tab("https://chatgpt.com")
 wait_for_load()
 time.sleep(3)
-
-# Login if needed
-info = page_info()
-if "Log in" in info:
-    print("Please log in in the browser window...")
-    input("Press Enter when logged in...")
-
-# Generate image
-js("""
-    const input = document.querySelector('textarea, [contenteditable="true"]');
-    if (input) {
-        input.focus();
-        input.value = "A serene Japanese garden with cherry blossoms";
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-""")
-
-# Click send
-js("""
-    const btn = document.querySelector('button[data-testid="send-button"]');
-    if (btn) btn.click();
-""")
-
-# Wait and capture
-time.sleep(20)
-capture_screenshot("/tmp/generated.png")
-print("Screenshot saved!")
+# ... login flow ...
+# ... generate image ...
 PY
 ```
 
