@@ -488,6 +488,164 @@ test-<provider-id>.mjs             # Test suite
 <PROVIDER_NAME>_SETUP.md           # User documentation
 ```
 
+## Image Generation
+
+Web UI providers often support image generation (DALL-E, etc.). The executor must pass image-specific parameters:
+
+### Add Image Parameters to Executor
+
+```javascript
+// In transformRequest method
+if (body.size) transformed.size = body.size;           // '1024x1024', '1792x1024', etc.
+if (body.quality) transformed.quality = body.quality;   // 'standard', 'hd'
+if (body.style) transformed.style = body.style;         // 'vivid', 'natural'
+if (body.response_format) transformed.response_format = body.response_format; // 'url', 'b64_json'
+```
+
+### Image Generation Request
+
+```javascript
+const body = executor.transformRequest('dall-e-3', {
+  messages: [{ role: 'user', content: 'A sunset over mountains' }],
+  size: '1024x1024',
+  quality: 'hd',
+  style: 'vivid'
+}, false, credentials);
+```
+
+### Test Image Generation
+
+```bash
+node test-image-generation.mjs
+node generate-image-direct.mjs --token YOUR_TOKEN
+```
+
+## Browser Automation with browser-harness
+
+Use [browser-harness](https://github.com/browser-use/browser-harness) for browser-based tasks (login flows, web scraping, UI testing).
+
+### Installation
+
+```bash
+# Install uv (Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install browser-harness
+uv tool install browser-harness
+
+# Verify
+browser-harness --version
+browser-harness --doctor
+```
+
+### Cloud Browser (Recommended)
+
+No local Chrome needed. Get a free API key:
+
+1. Visit https://cloud.browser-use.com/new-api-key
+2. Sign up for free tier (3 concurrent browsers)
+3. Set the key:
+   ```bash
+   export BROWSER_USE_API_KEY=your-key-here
+   ```
+
+### Generate Image via Cloud Browser
+
+```bash
+browser-harness <<'PY'
+import time
+
+# Start remote browser
+daemon = start_remote_daemon("image-gen", timeout=300)
+print(f"Browser URL: {daemon}")
+
+# Navigate to ChatGPT
+new_tab("https://chatgpt.com")
+wait_for_load()
+time.sleep(3)
+
+# Login if needed
+info = page_info()
+if "Log in" in info:
+    print("Please log in in the browser window...")
+    input("Press Enter when logged in...")
+
+# Generate image
+js("""
+    const input = document.querySelector('textarea, [contenteditable="true"]');
+    if (input) {
+        input.focus();
+        input.value = "A serene Japanese garden with cherry blossoms";
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+""")
+
+# Click send
+js("""
+    const btn = document.querySelector('button[data-testid="send-button"]');
+    if (btn) btn.click();
+""")
+
+# Wait and capture
+time.sleep(20)
+capture_screenshot("/tmp/generated.png")
+print("Screenshot saved!")
+PY
+```
+
+### Local Chrome (Way 2)
+
+Launch Chrome with remote debugging:
+
+```bash
+# Linux
+chromium-browser --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
+
+# macOS
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+
+# Windows
+chrome.exe --remote-debugging-port=9222
+```
+
+Then use browser-harness:
+
+```bash
+browser-harness <<'PY'
+new_tab("https://chatgpt.com")
+wait_for_load()
+print(page_info())
+PY
+```
+
+### Useful browser-harness Commands
+
+```bash
+# Check connection
+browser-harness --doctor
+
+# Page info
+browser-harness <<'PY'
+print(page_info())
+PY
+
+# Screenshot
+browser-harness <<'PY'
+capture_screenshot("/tmp/screenshot.png")
+PY
+
+# JavaScript execution
+browser-harness <<'PY'
+result = js("return document.title")
+print(result)
+PY
+
+# Click at coordinates
+browser-harness <<'PY'
+click_at_xy(100, 200)
+PY
+```
+
 ## Checklist
 
 - [ ] Provider registry created with models and auth config
@@ -497,5 +655,7 @@ test-<provider-id>.mjs             # Test suite
 - [ ] CLI tool definition added to `cliTools.js`
 - [ ] Test suite created and passing
 - [ ] Documentation created (setup guide)
+- [ ] Image generation support added (if applicable)
+- [ ] Browser automation tested (if applicable)
 - [ ] Changes committed on feature branch
 - [ ] Branch pushed to fork
