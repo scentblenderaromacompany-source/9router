@@ -298,9 +298,13 @@ export class ClaudeWebExecutor extends WebUIExecutor {
 
   handleWebError(response, status, logger) {
     let errMsg = `Claude returned HTTP ${status}`;
-    if (status === 401 || status === 403) errMsg = "Claude auth failed — sessionKey may be expired";
-    else if (status === 429) errMsg = "Claude rate limited";
-    else if (status === 404) errMsg = "Claude organization or conversation not found";
+    if (status === 401 || status === 403) {
+      errMsg = "Claude session expired — update your sessionKey in Providers → Claude Web → Edit";
+    } else if (status === 429) {
+      errMsg = "Claude rate limited — try again shortly";
+    } else if (status === 404) {
+      errMsg = "Claude organization or conversation not found";
+    }
     
     logger?.warn?.("CLAUDE-WEB", errMsg);
     return this.errorResponse(errMsg, status);

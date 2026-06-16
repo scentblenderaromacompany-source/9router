@@ -1,6 +1,6 @@
 ---
 name: web-ui-integration
-description: Use when creating Web UI integrations (like ChatGPT Web, Z.AI, Grok Web) in 9Router. Covers executor creation, provider registry, traffic interception, browser automation, and test suites.
+description: Use when creating Web UI integrations (like ChatGPT Web, Z.AI, Grok Web, Claude Web) in 9Router. Covers executor creation, provider registry, traffic interception, browser automation, and test suites.
 license: MIT
 compatibility: opencode
 metadata:

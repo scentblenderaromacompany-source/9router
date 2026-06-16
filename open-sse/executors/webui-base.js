@@ -17,6 +17,7 @@ import { sseChunk } from "../utils/sse.js";
 export class WebUIExecutor extends BaseExecutor {
   constructor(providerId, config) {
     super(providerId, config);
+    this.providerId = providerId;
   }
 
   /**
