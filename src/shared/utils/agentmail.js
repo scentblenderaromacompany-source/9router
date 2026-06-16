@@ -4,17 +4,19 @@
  */
 
 const AGENTMAIL_API = 'https://api.agentmail.to/v0';
+const AGENTMAIL_API_KEY = process.env.AGENTMAIL_API_KEY || 'am_us_db243b3bbb61770be772fda9979a40dbbc56dc7a910e33be831f6bb48366bedd';
 
 /**
  * Create a new temporary inbox
  * @param {string} prefix - Optional prefix for the email address
- * @returns {Promise<{inboxId: string, email: string, token: string}>}
+ * @returns {Promise<{inboxId: string, email: string}>}
  */
 export async function createInbox(prefix = '') {
   const response = await fetch(`${AGENTMAIL_API}/inboxes`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
     },
     body: JSON.stringify({
       prefix: prefix || undefined,
@@ -22,7 +24,8 @@ export async function createInbox(prefix = '') {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to create inbox: ${response.statusText}`);
+    const error = await response.text();
+    throw new Error(`Failed to create inbox: ${response.status} ${error}`);
   }
 
   return response.json();
@@ -38,6 +41,7 @@ export async function getInbox(inboxId) {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
     },
   });
 
@@ -58,6 +62,7 @@ export async function listMessages(inboxId) {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
     },
   });
 
@@ -65,7 +70,8 @@ export async function listMessages(inboxId) {
     throw new Error(`Failed to list messages: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return data.messages || data;
 }
 
 /**
@@ -79,6 +85,7 @@ export async function getMessage(inboxId, messageId) {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
     },
   });
 
@@ -149,6 +156,7 @@ export async function deleteInbox(inboxId) {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
     },
   });
 
