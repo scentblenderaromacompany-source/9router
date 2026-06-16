@@ -687,6 +687,54 @@ amp --model "{{model}}"
 }`,
     },
   },
+  deepseek_web: {
+    id: "deepseek-web",
+    name: "DeepSeek Web (Native)",
+    icon: "terminal",
+    color: "#4D6BFE",
+    description: "Native DeepSeek Web UI integration with USER_TOKEN authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your DeepSeek account USER_TOKEN to access DeepSeek models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports DeepSeek Chat and DeepSeek Reasoner models with deep thinking.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your User Token",
+        desc: "Visit https://chat.deepseek.com while logged in, open Developer Tools (F12) → Application → Local Storage → chat.deepseek.com → copy the 'USER_TOKEN' value.",
+      },
+      {
+        step: 2,
+        title: "Add DeepSeek Web Provider",
+        desc: "Go to Providers → Add New → Select 'DeepSeek Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste User Token",
+        desc: "Paste your USER_TOKEN value in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from deepseek-web-chat or deepseek-web-reasoner.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "deepseek-web",
+  "model": "deepseek-web-chat",
+  "apiKey": "<your-deepseek-user-token>"
+}`,
+    },
+  },
 };
 
 // Get all provider models for mapping dropdown

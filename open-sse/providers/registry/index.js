@@ -44,6 +44,7 @@ import p40a from "./chatgpt-web.js";
 import p40b from "./z-ai.js";
 import p40c from "./z-ai-web.js";
 import p40d from "./claude-web.js";
+import p40e from "./deepseek-web.js";
 import p41 from "./groq.js";
 import p42 from "./huggingface.js";
 import p43 from "./hyperbolic.js";
@@ -144,6 +145,7 @@ export default [
   p40b,
   p40c,
   p40d,
+  p40e,
   p41,
   p42,
   p43,
