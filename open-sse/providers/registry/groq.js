@@ -82,8 +82,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -97,8 +96,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -112,8 +110,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     }
   ],

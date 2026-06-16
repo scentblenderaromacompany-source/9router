@@ -65,8 +65,7 @@ export default {
       "name": "Mistral Embed",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",

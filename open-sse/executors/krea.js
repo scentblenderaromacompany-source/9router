@@ -100,12 +100,21 @@
  * - POST /node-apps/{id}/execute
  */
 
-export class KreaExecutor {
+import { BaseExecutor } from "./base.js";
+
+export class KreaExecutor extends BaseExecutor {
   constructor() {
-    this.providerId = "krea";
-    this.config = {
+    super("krea", {
       baseUrl: "https://api.krea.ai",
-    };
+    });
+  }
+
+  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    return this.config.baseUrl;
+  }
+
+  transformRequest(model, body, stream, credentials) {
+    return body;
   }
 
   // ============ URL builders ============

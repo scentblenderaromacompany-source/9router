@@ -76,8 +76,7 @@ export default {
       "name": "BGE Large EN v1.5",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -90,8 +89,7 @@ export default {
       "name": "M2 BERT 80M 8K",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",

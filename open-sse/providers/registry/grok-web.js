@@ -3,7 +3,7 @@ export default {
   "priority": 150,
   "alias": "grok-web",
   "aliases": [
-    "gw"
+    "grok"
   ],
   "uiAlias": "gw",
   "display": {

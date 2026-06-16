@@ -22,8 +22,7 @@ export default {
       "name": "Voyage 3 Large",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -36,8 +35,7 @@ export default {
       "name": "Voyage 3.5",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -50,8 +48,7 @@ export default {
       "name": "Voyage 3.5 Lite",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -64,8 +61,7 @@ export default {
       "name": "Voyage Code 3",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -78,8 +74,7 @@ export default {
       "name": "Voyage Finance 2",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -92,8 +87,7 @@ export default {
       "name": "Voyage Law 2",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -106,8 +100,7 @@ export default {
       "name": "Voyage Multilingual 2",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",

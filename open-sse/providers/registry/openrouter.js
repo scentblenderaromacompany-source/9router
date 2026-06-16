@@ -73,8 +73,7 @@ export default {
       "name": "Perplexity Embed V1 4B",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -87,8 +86,7 @@ export default {
       "name": "Perplexity Embed V1 0.6B",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -101,8 +99,7 @@ export default {
       "name": "NVIDIA Nemotron Embed VL 1B V2 (Free)",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -163,8 +160,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "tools"
+        "text2img"
       ]
     },
     {
@@ -178,9 +174,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "vision",
-        "tools"
+        "text2img"
       ]
     },
     {
@@ -192,9 +186,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "vision",
-        "tools"
+        "text2img"
       ]
     },
     {
@@ -206,8 +198,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "tools"
+        "text2img"
       ]
     }
   ],

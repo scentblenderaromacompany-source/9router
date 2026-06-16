@@ -34,13 +34,22 @@
  * - WS   /v1/realtime              - Realtime WebSocket
  */
 
-export class PollinationsExecutor {
+import { BaseExecutor } from "./base.js";
+
+export class PollinationsExecutor extends BaseExecutor {
   constructor() {
-    this.providerId = "pollinations";
-    this.config = {
+    super("pollinations", {
       baseUrl: "https://gen.pollinations.ai",
       imageBaseUrl: "https://image.pollinations.ai",
-    };
+    });
+  }
+
+  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    return this.config.baseUrl;
+  }
+
+  transformRequest(model, body, stream, credentials) {
+    return body;
   }
 
   // ============ URL builders ============

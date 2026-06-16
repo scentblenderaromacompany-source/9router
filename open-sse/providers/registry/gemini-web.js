@@ -9,7 +9,7 @@ export default {
   id: "gemini-web",
   priority: 140,
   alias: "gemini-web",
-  aliases: ["gw"],
+  aliases: ["gmw"],
   uiAlias: "gw",
   display: {
     name: "Gemini Web (Native)",

@@ -40,8 +40,7 @@ export default {
       "params": [],
       "kind": "image",
       "capabilities": [
-        "text",
-        "tools"
+        "text2img"
       ]
     },
     {
@@ -52,8 +51,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -64,8 +62,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     }
   ],

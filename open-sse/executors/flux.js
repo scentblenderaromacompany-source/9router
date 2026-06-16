@@ -39,12 +39,21 @@
  * - POST /v1/delete_finetune          - Delete finetune
  */
 
-export class FluxExecutor {
+import { BaseExecutor } from "./base.js";
+
+export class FluxExecutor extends BaseExecutor {
   constructor() {
-    this.providerId = "flux";
-    this.config = {
+    super("flux", {
       baseUrl: "https://api.bfl.ai",
-    };
+    });
+  }
+
+  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    return this.config.baseUrl;
+  }
+
+  transformRequest(model, body, stream, credentials) {
+    return body;
   }
 
   // ============ URL builders ============

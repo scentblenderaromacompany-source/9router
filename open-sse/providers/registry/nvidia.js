@@ -51,8 +51,7 @@ export default {
       "name": "NV EmbedQA E5 v5",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",
@@ -68,8 +67,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -77,8 +75,7 @@ export default {
       "name": "FastPitch",
       "kind": "tts",
       "capabilities": [
-        "text",
-        "tools"
+        "tts"
       ],
       "params": [
         "temperature",
@@ -91,8 +88,7 @@ export default {
       "name": "Tacotron2",
       "kind": "tts",
       "capabilities": [
-        "text",
-        "tools"
+        "tts"
       ],
       "params": [
         "temperature",
