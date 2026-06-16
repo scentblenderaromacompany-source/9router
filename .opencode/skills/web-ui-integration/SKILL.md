@@ -144,6 +144,7 @@ console.log('✅ All tests passed');
 | Provider | Guest Mode | Registration | CAPTCHA Type |
 |----------|-----------|--------------|--------------|
 | **Z.AI** | ✅ Works (Skip login) | Alibaba Cloud slider | Manual required |
+| **Claude** | ❌ Login required | Session Key cookie | N/A |
 | **ChatGPT** | ❌ Login required | Turnstile | Manual required |
 | **Grok** | ❌ Login required | SSO-based | N/A |
 
@@ -181,6 +182,58 @@ Z.AI API endpoints (from traffic analysis):
 ```
 POST /api/v2/chat/completions
 Authorization: Bearer <guest-token>
+```
+
+## Claude Web Integration
+
+### Authentication
+
+Claude requires a `sessionKey` cookie from the browser:
+
+1. Login to https://claude.ai
+2. Open Developer Tools (F12) → Application → Cookies
+3. Find `sessionKey` cookie value
+4. Use as `apiKey` in provider config
+
+### API Endpoints
+
+```
+GET  /api/organizations                           # Get organization ID
+POST /api/organizations/{org_id}/chat_conversations  # Create conversation
+POST /api/organizations/{org_id}/chat_conversations/{conv_id}/completion  # Send message
+```
+
+### Request Format
+
+```json
+{
+  "prompt": "Human: Hello\n\nAssistant:",
+  "timezone": "UTC",
+  "model": "claude-sonnet-4-6-20260214"
+}
+```
+
+### Available Models
+
+| Model ID | Name |
+|----------|------|
+| `claude-sonnet-4-6` | Claude Sonnet 4.6 |
+| `claude-opus-4-6` | Claude Opus 4.6 |
+| `claude-haiku-4-5` | Claude Haiku 4.5 |
+| `claude-sonnet-4` | Claude Sonnet 4 |
+| `claude-opus-4` | Claude Opus 4 |
+| `claude-3-5-sonnet` | Claude 3.5 Sonnet |
+| `claude-3-5-haiku` | Claude 3.5 Haiku |
+
+### Usage Example
+
+```javascript
+// Provider config
+{
+  "provider": "claude-web",
+  "model": "claude-sonnet-4-6",
+  "apiKey": "<your-session-key>"
+}
 ```
 
 ## Browser Automation (puppeteer-extra-stealth)
