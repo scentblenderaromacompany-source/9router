@@ -1,140 +1,160 @@
 import { WebUIExecutor } from "./webui-base.js";
 import { PROVIDERS } from "../config/providers.js";
 
-const DEEPSEEK_API = "https://chat.deepseek.com";
-const DEEPSEEK_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const DEEPSEEK_CLIENT_VERSION = "2.0.2";
+const KIMI_API = "https://kimi.com";
+const KIMI_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36";
 
 const MODEL_MAP = {
-  // DeepSeek V4 Flash models
-  "deepseek-default": { mode: "default", name: "DeepSeek V4 Flash" },
-  "deepseek-reasoner": { mode: "reasoner", name: "DeepSeek V4 Flash Reasoning" },
-  "deepseek-search": { mode: "search", name: "DeepSeek V4 Flash Search" },
-  "deepseek-reasoner-search": { mode: "reasoner-search", name: "DeepSeek V4 Flash Reasoning+Search" },
+  // Kimi K2.7 models
+  "kimi-k2.7": { model: "kimi-k2.7", name: "Kimi K2.7" },
+  "kimi-k2.7-thinking": { model: "kimi-k2.7", name: "Kimi K2.7 Thinking", thinking: true },
+  "kimi-k2.7-code": { model: "kimi-k2.7-code", name: "Kimi K2.7 Code", thinking: true },
   
-  // DeepSeek V4 Pro models
-  "deepseek-expert": { mode: "expert", name: "DeepSeek V4 Pro" },
-  "deepseek-expert-reasoner": { mode: "expert-reasoner", name: "DeepSeek V4 Pro Reasoning" },
-  "deepseek-expert-search": { mode: "expert-search", name: "DeepSeek V4 Pro Search" },
-  "deepseek-expert-reasoner-search": { mode: "expert-reasoner-search", name: "DeepSeek V4 Pro Reasoning+Search" },
+  // Kimi K2.6 models
+  "kimi-k2.6": { model: "kimi-k2.6", name: "Kimi K2.6" },
+  "kimi-k2.6-thinking": { model: "kimi-k2.6", name: "Kimi K2.6 Thinking", thinking: true },
   
-  // DeepSeek Vision models
-  "deepseek-vision": { mode: "vision", name: "DeepSeek Vision" },
-  "deepseek-vision-reasoner": { mode: "vision-reasoner", name: "DeepSeek Vision Reasoning" },
+  // Kimi K2.5 models
+  "kimi-k2.5": { model: "kimi-k2.5", name: "Kimi K2.5" },
+  "kimi-k2.5-thinking": { model: "kimi-k2.5", name: "Kimi K2.5 Thinking", thinking: true },
   
-  // Legacy aliases
-  "deepseek-web-chat": { mode: "default", name: "DeepSeek Chat (Legacy)" },
-  "deepseek-web-reasoner": { mode: "reasoner", name: "DeepSeek Reasoner (Legacy)" },
+  // Kimi K2 models
+  "kimi-k2": { model: "kimi-k2", name: "Kimi K2" },
+  "kimi-k2-thinking": { model: "kimi-k2", name: "Kimi K2 Thinking", thinking: true },
+  
+  // Kimi K1.5 models
+  "kimi-k1.5": { model: "kimi-k1.5", name: "Kimi K1.5" },
+  "kimi-k1.5-thinking": { model: "kimi-k1.5", name: "Kimi K1.5 Thinking", thinking: true },
+  
+  // Kimi legacy models
+  "kimi": { model: "kimi", name: "Kimi Latest" },
+  "kimi-vision": { model: "kimi", name: "Kimi Vision", vision: true },
+  
+  // OK Computer
+  "ok-computer": { model: "ok-computer", name: "OK Computer" },
 };
 
 /**
- * DeepSeek Web Executor - Direct web API integration
+ * Kimi Web Executor - Direct web API integration
  * 
- * This executor communicates directly with DeepSeek's web interface,
- * using USER_TOKEN from browser local storage for authentication.
+ * This executor communicates directly with Kimi's web interface,
+ * using bearer token from browser for authentication.
  * 
  * Complete API Endpoints:
- * - POST /api/v0/chat/completion          - Send chat message (SSE streaming)
- * - POST /api/v0/chat_session/create      - Create new session
- * - POST /api/v0/chat_session/delete      - Delete session
- * - GET  /api/v0/chat/history_messages    - Get chat history
- * - POST /api/v0/chat/create_pow_challenge - Create PoW challenge
- * - POST /api/v0/file/upload_file         - Upload file
- * - GET  /api/v0/file/fetch_files         - Query file status
- * - POST /api/v0/file/fork_file_task      - Fork file task
- * - GET  /api/v0/client/settings          - Get model settings
- * - GET  /api/v0/users/me                 - Get current user info
- * - GET  /api/v0/users/settings           - Get user settings
- * - PUT  /api/v0/users/settings           - Update user settings
- * - GET  /api/v0/shared/conversations     - List shared conversations
- * - GET  /api/v0/shared/conversations/:id - Get shared conversation
- * - POST /api/v0/shared/conversations     - Share conversation
- * - GET  /api/v0/characters               - List characters
- * - GET  /api/v0/characters/:id           - Get character
- * - POST /api/v0/characters               - Create character
+ * - POST /api/chat                              - Create new chat session
+ * - POST /api/chat/{chat_id}/completion/stream   - Send message (SSE streaming)
+ * - POST /api/chat/{chat_id}/completion          - Send message (non-streaming)
+ * - GET  /api/chat/{chat_id}                     - Get chat session info
+ * - GET  /api/chat/{chat_id}/messages            - Get chat history
+ * - DELETE /api/chat/{chat_id}                   - Delete chat session
+ * - POST /api/chat/{chat_id}/title               - Generate chat title
+ * - POST /api/chat/{chat_id}/share               - Share chat
+ * - POST /api/files/upload                       - Upload file
+ * - GET  /api/files                              - List files
+ * - GET  /api/user/me                            - Get current user info
+ * - GET  /api/models                             - List available models
+ * - POST /api/search                             - Web search
+ * - POST /api/chat/{chat_id}/memory              - Save memory
+ * - GET  /api/chat/{chat_id}/memory              - Get memory
+ * - POST /api/chat/{chat_id}/regenerate          - Regenerate last response
+ * - POST /api/chat/{chat_id}/stop                 - Stop generation
+ * - GET  /api/subscription                       - Get subscription info
+ * - GET  /api/usage                              - Get usage stats
  * 
  * Features:
  * - Session management with conversation tracking
- * - Proof of Work (PoW) handling
- * - Tool calling support via DSML prompt injection
+ * - Tool calling support (web search, code runner, memory)
  * - Deep thinking (reasoning) support
- * - File upload support
+ * - Web search support
+ * - File upload support (images, documents)
+ * - Memory persistence
  * - Streaming SSE responses
  * 
- * IMPORTANT: Requires a valid USER_TOKEN from chat.deepseek.com.
- * Get it from: F12 → Application → Local Storage → chat.deepseek.com → USER_TOKEN
+ * IMPORTANT: Requires a valid Bearer token from kimi.com.
+ * Get it from: F12 → Network → any request → Authorization: Bearer token
  */
-export class DeepSeekWebExecutor extends WebUIExecutor {
+export class KimiWebExecutor extends WebUIExecutor {
   constructor() {
-    super("deepseek-web", PROVIDERS["deepseek-web"] || {
-      baseUrl: DEEPSEEK_API,
+    super("kimi-web", PROVIDERS["kimi-web"] || {
+      baseUrl: KIMI_API,
       format: "openai",
     });
     this.sessions = new Map();
     this.parentMessageIds = new Map();
-    this.powChallenges = new Map();
   }
 
   // ============ URL Builders ============
 
   buildUrl(model, stream, urlIndex = 0, credentials = null) {
-    return `${DEEPSEEK_API}/api/v0/chat/completion`;
+    const chatId = this.getSessionId(credentials);
+    if (chatId && stream) {
+      return `${KIMI_API}/api/chat/${chatId}/completion/stream`;
+    }
+    return `${KIMI_API}/api/chat`;
   }
 
   getChatSessionUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat_session/create`;
+    return `${KIMI_API}/api/chat`;
   }
 
-  getDeleteSessionUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat_session/delete`;
+  getChatInfoUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}`;
   }
 
-  getHistoryUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat/history_messages`;
+  getChatHistoryUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}/messages`;
+  }
+
+  getDeleteSessionUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}`;
   }
 
   getFileUploadUrl() {
-    return `${DEEPSEEK_API}/api/v0/file/upload_file`;
+    return `${KIMI_API}/api/files/upload`;
   }
 
-  getFileStatusUrl(fileIds) {
-    return `${DEEPSEEK_API}/api/v0/file/fetch_files?file_ids=${fileIds}`;
-  }
-
-  getSettingsUrl(scope = "model") {
-    return `${DEEPSEEK_API}/api/v0/client/settings?scope=${scope}`;
-  }
-
-  getPowChallengeUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat/create_pow_challenge`;
+  getFilesUrl() {
+    return `${KIMI_API}/api/files`;
   }
 
   getUserMeUrl() {
-    return `${DEEPSEEK_API}/api/v0/users/me`;
+    return `${KIMI_API}/api/user/me`;
   }
 
-  getUserSettingsUrl() {
-    return `${DEEPSEEK_API}/api/v0/users/settings`;
+  getModelsUrl() {
+    return `${KIMI_API}/api/models`;
   }
 
-  getSharedConversationsUrl() {
-    return `${DEEPSEEK_API}/api/v0/shared/conversations`;
+  getChatTitleUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}/title`;
   }
 
-  getSharedConversationUrl(id) {
-    return `${DEEPSEEK_API}/api/v0/shared/conversations/${id}`;
+  getShareChatUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}/share`;
   }
 
-  getCharactersUrl() {
-    return `${DEEPSEEK_API}/api/v0/characters`;
+  getSearchUrl() {
+    return `${KIMI_API}/api/search`;
   }
 
-  getCharacterUrl(id) {
-    return `${DEEPSEEK_API}/api/v0/characters/${id}`;
+  getMemoryUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}/memory`;
   }
 
-  getForkFileUrl() {
-    return `${DEEPSEEK_API}/api/v0/file/fork_file_task`;
+  getRegenerateUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}/regenerate`;
+  }
+
+  getStopUrl(chatId) {
+    return `${KIMI_API}/api/chat/${chatId}/stop`;
+  }
+
+  getSubscriptionUrl() {
+    return `${KIMI_API}/api/subscription`;
+  }
+
+  getUsageUrl() {
+    return `${KIMI_API}/api/usage`;
   }
 
   // ============ Header Builders ============
@@ -142,13 +162,11 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
   async buildWebHeaders(credentials) {
     const headers = {
       Accept: "text/event-stream",
-      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
       "Content-Type": "application/json",
-      "User-Agent": DEEPSEEK_USER_AGENT,
-      Origin: DEEPSEEK_API,
-      Referer: `${DEEPSEEK_API}/`,
-      "x-client-version": DEEPSEEK_CLIENT_VERSION,
-      "x-client-platform": "web",
+      "User-Agent": KIMI_USER_AGENT,
+      Origin: KIMI_API,
+      Referer: `${KIMI_API}/`,
     };
 
     if (credentials?.apiKey) {
@@ -161,38 +179,34 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
   // ============ Payload Builders ============
 
   async buildWebPayload(model, messages, stream, credentials) {
-    const modelInfo = MODEL_MAP[model] || { mode: "chat", name: model };
-    const prompt = this.buildPrompt(messages);
-    const sessionId = await this.getOrCreateSession(credentials);
-    const parentId = this.getParentMessageId(credentials);
-    
-    // Get PoW response if needed
-    const powResponse = await this.getPowResponse(credentials);
+    const modelInfo = MODEL_MAP[model] || { model: model, name: model };
+    const chatId = await this.getOrCreateSession(credentials);
     
     const payload = {
-      prompt,
-      chat_session_id: sessionId,
-      parent_message_id: parentId,
-      model: modelInfo.mode,
+      model: modelInfo.model,
+      messages: this.buildMessagesArray(messages, modelInfo),
       stream: stream ?? false,
-      search_enabled: model.includes("search"),
-      thinking_enabled: model.includes("reasoner"),
-      ref_file_ids: [],
     };
 
-    // Add PoW response header
-    if (powResponse) {
-      payload._powResponse = powResponse;
+    // Add thinking parameter for thinking models
+    if (modelInfo.thinking) {
+      payload.thinking = { type: "enabled" };
     }
 
-    return payload;
+    // Add search if model includes search
+    if (model.includes("search")) {
+      payload.tools = [{ type: "builtin_function", function: { name: "$web_search" } }];
+    }
+
+    return { payload, chatId };
   }
 
   /**
-   * Build prompt from OpenAI messages format
+   * Build messages array from OpenAI messages format
    */
-  buildPrompt(messages) {
-    const parts = [];
+  buildMessagesArray(messages, modelInfo) {
+    const result = [];
+    
     for (const msg of messages) {
       let role = msg.role || "user";
       let content = "";
@@ -208,18 +222,20 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       
       if (!content.trim()) continue;
       
+      // Kimi uses "system" role for system messages
       if (role === "system") {
-        parts.push(`[System] ${content}`);
+        result.push({ role: "system", content });
       } else if (role === "user") {
-        parts.push(content);
+        result.push({ role: "user", content });
       } else if (role === "assistant") {
-        parts.push(`[Assistant] ${content}`);
+        result.push({ role: "assistant", content });
       } else if (role === "tool") {
-        parts.push(`[Tool Result] ${content}`);
+        // Kimi doesn't have a tool role, so we convert to user message
+        result.push({ role: "user", content: `[Tool Result] ${content}` });
       }
     }
     
-    return parts.join("\n\n");
+    return result;
   }
 
   // ============ Session Management ============
@@ -234,7 +250,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     const response = await fetch(this.getChatSessionUrl(), {
       method: "POST",
       headers,
-      body: JSON.stringify({ agent: "chat" }),
+      body: JSON.stringify({}),
     });
 
     if (!response.ok) {
@@ -242,18 +258,17 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
 
     const data = await response.json();
-    const sessionId = data.data?.biz_data?.id || data.chat_session_id || data.id;
-    this.sessions.set(cacheKey, sessionId);
+    const chatId = data.data?.id || data.id;
+    this.sessions.set(cacheKey, chatId);
     this.parentMessageIds.set(cacheKey, null);
-    return sessionId;
+    return chatId;
   }
 
-  async deleteSession(credentials, sessionId) {
+  async deleteSession(credentials, chatId) {
     const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getDeleteSessionUrl(), {
-      method: "POST",
+    const response = await fetch(this.getDeleteSessionUrl(chatId), {
+      method: "DELETE",
       headers,
-      body: JSON.stringify({ chat_session_id: sessionId }),
     });
 
     if (!response.ok) {
@@ -264,6 +279,11 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     this.sessions.delete(cacheKey);
     this.parentMessageIds.delete(cacheKey);
     return true;
+  }
+
+  getSessionId(credentials) {
+    const cacheKey = credentials?.apiKey || "default";
+    return this.sessions.get(cacheKey) || null;
   }
 
   getParentMessageId(credentials) {
@@ -284,17 +304,30 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
 
   // ============ History ============
 
-  async getHistory(credentials, sessionId, offset = 0, limit = 20) {
+  async getHistory(credentials, chatId) {
     const headers = await this.buildWebHeaders(credentials);
-    const url = `${this.getHistoryUrl()}?chat_session_id=${sessionId}&offset=${offset}&limit=${limit}`;
-    const response = await fetch(url, { headers });
+    const response = await fetch(this.getChatHistoryUrl(chatId), { headers });
 
     if (!response.ok) {
       throw new Error(`Failed to get history: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
+  }
+
+  // ============ Chat Info ============
+
+  async getChatInfo(credentials, chatId) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getChatInfoUrl(chatId), { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get chat info: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
   }
 
   // ============ File Operations ============
@@ -322,34 +355,19 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
   }
 
-  async getFileStatus(credentials, fileIds) {
+  async listFiles(credentials) {
     const headers = await this.buildWebHeaders(credentials);
-    const url = this.getFileStatusUrl(Array.isArray(fileIds) ? fileIds.join(",") : fileIds);
-    const response = await fetch(url, { headers });
+    const response = await fetch(this.getFilesUrl(), { headers });
 
     if (!response.ok) {
-      throw new Error(`Failed to get file status: ${response.status}`);
+      throw new Error(`Failed to list files: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ Model Settings ============
-
-  async getModelSettings(credentials) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSettingsUrl("model"), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get model settings: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
   }
 
   // ============ User Info ============
@@ -363,163 +381,163 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
   }
 
-  async getUserSettings(credentials) {
+  // ============ Models ============
+
+  async getModels(credentials) {
     const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getUserSettingsUrl(), { headers });
+    const response = await fetch(this.getModelsUrl(), { headers });
 
     if (!response.ok) {
-      throw new Error(`Failed to get user settings: ${response.status}`);
+      throw new Error(`Failed to get models: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
   }
 
-  async updateUserSettings(credentials, settings) {
+  // ============ Chat Operations ============
+
+  async generateTitle(credentials, chatId) {
     const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getUserSettingsUrl(), {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(settings),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to update user settings: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ Shared Conversations ============
-
-  async listSharedConversations(credentials) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSharedConversationsUrl(), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to list shared conversations: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async getSharedConversation(credentials, conversationId) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSharedConversationUrl(conversationId), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get shared conversation: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async shareConversation(credentials, sessionId) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSharedConversationsUrl(), {
+    const response = await fetch(this.getChatTitleUrl(chatId), {
       method: "POST",
       headers,
-      body: JSON.stringify({ chat_session_id: sessionId }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to share conversation: ${response.status}`);
+      throw new Error(`Failed to generate title: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
   }
 
-  // ============ Characters ============
-
-  async listCharacters(credentials) {
+  async shareChat(credentials, chatId) {
     const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getCharactersUrl(), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to list characters: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async getCharacter(credentials, characterId) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getCharacterUrl(characterId), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get character: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async createCharacter(credentials, character) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getCharactersUrl(), {
+    const response = await fetch(this.getShareChatUrl(chatId), {
       method: "POST",
       headers,
-      body: JSON.stringify(character),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create character: ${response.status}`);
+      throw new Error(`Failed to share chat: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
   }
 
-  // ============ File Operations (Extended) ============
+  // ============ Search ============
 
-  async forkFile(credentials, fileId, forkType) {
+  async search(credentials, query) {
     const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getForkFileUrl(), {
+    const response = await fetch(this.getSearchUrl(), {
       method: "POST",
       headers,
-      body: JSON.stringify({ file_id: fileId, fork_type: forkType }),
+      body: JSON.stringify({ query }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fork file: ${response.status}`);
+      throw new Error(`Failed to search: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.data?.biz_data || data;
+    return data.data || data;
   }
 
-  // ============ PoW (Proof of Work) ============
+  // ============ Memory ============
 
-  async getPowResponse(credentials) {
-    try {
-      const headers = await this.buildWebHeaders(credentials);
-      const response = await fetch(this.getPowChallengeUrl(), {
-        method: "POST",
-        headers,
-        body: JSON.stringify({}),
-      });
+  async saveMemory(credentials, chatId, memory) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getMemoryUrl(chatId), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ memory }),
+    });
 
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-      const challenge = data.data?.biz_data || data;
-      
-      // In production, solve the PoW challenge here
-      // For now, return the challenge data
-      return challenge;
-    } catch {
-      return null;
+    if (!response.ok) {
+      throw new Error(`Failed to save memory: ${response.status}`);
     }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  async getMemory(credentials, chatId) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getMemoryUrl(chatId), { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get memory: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  // ============ Regenerate ============
+
+  async regenerate(credentials, chatId) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getRegenerateUrl(chatId), {
+      method: "POST",
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to regenerate: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  // ============ Stop Generation ============
+
+  async stopGeneration(credentials, chatId) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getStopUrl(chatId), {
+      method: "POST",
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to stop generation: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  // ============ Subscription ============
+
+  async getSubscription(credentials) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getSubscriptionUrl(), { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get subscription: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  // ============ Usage ============
+
+  async getUsage(credentials) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getUsageUrl(), { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get usage: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
   }
 
   // ============ Main Execute ============
@@ -532,28 +550,24 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
 
     if (!credentials?.apiKey) {
       return this.errorResponse(
-        "DeepSeek Web requires a USER_TOKEN. Get it from: F12 → Application → Local Storage → chat.deepseek.com → USER_TOKEN",
+        "Kimi Web requires a Bearer token. Get it from: F12 → Network → any request → Authorization: Bearer token",
         401
       );
     }
 
     try {
       // Build payload
-      const payload = await this.buildWebPayload(model, messages, stream, credentials);
+      const { payload, chatId } = await this.buildWebPayload(model, messages, stream, credentials);
       
       // Build headers
       const headers = await this.buildWebHeaders(credentials);
       
-      // Add PoW header if available
-      if (payload._powResponse) {
-        headers["x-ds-pow-response"] = JSON.stringify(payload._powResponse);
-        delete payload._powResponse;
-      }
-      
       // Build URL
-      const url = this.buildUrl(model, stream, 0, credentials);
+      const url = stream 
+        ? `${KIMI_API}/api/chat/${chatId}/completion/stream`
+        : `${KIMI_API}/api/chat/${chatId}/completion`;
       
-      log?.info?.("DEEPSEEK-WEB", `Request to ${model}, session=${payload.chat_session_id}, endpoint=${url}`);
+      log?.info?.("KIMI-WEB", `Request to ${model}, chat=${chatId}, endpoint=${url}`);
       
       // Make request
       const response = await fetch(url, {
@@ -565,14 +579,18 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       
       // Handle auth errors - clear session and retry once
       if (response.status === 401 || response.status === 403) {
-        log?.warn?.("DEEPSEEK-WEB", "Auth failed, clearing session and retrying");
+        log?.warn?.("KIMI-WEB", "Auth failed, clearing session and retrying");
         this.clearSession(credentials);
         
-        const newPayload = await this.buildWebPayload(model, messages, stream, credentials);
-        const retryResponse = await fetch(url, {
+        const newChatId = await this.getOrCreateSession(credentials);
+        const newUrl = stream 
+          ? `${KIMI_API}/api/chat/${newChatId}/completion/stream`
+          : `${KIMI_API}/api/chat/${newChatId}/completion`;
+        
+        const retryResponse = await fetch(newUrl, {
           method: "POST",
           headers,
-          body: JSON.stringify(newPayload),
+          body: JSON.stringify(payload),
           signal,
         });
         
@@ -580,7 +598,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
           return this.handleWebError(retryResponse, retryResponse.status, log);
         }
         
-        return this.handleResponse(retryResponse, model, newPayload, url, headers, stream, signal, log, credentials);
+        return this.handleResponse(retryResponse, model, payload, newUrl, headers, stream, signal, log, credentials);
       }
       
       if (!response.ok) {
@@ -589,8 +607,8 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       
       return this.handleResponse(response, model, payload, url, headers, stream, signal, log, credentials);
     } catch (err) {
-      log?.error?.("DEEPSEEK-WEB", `Error: ${err.message || String(err)}`);
-      return this.errorResponse(`DeepSeek Web failed: ${err.message || String(err)}`, 502);
+      log?.error?.("KIMI-WEB", `Error: ${err.message || String(err)}`);
+      return this.errorResponse(`Kimi Web failed: ${err.message || String(err)}`, 502);
     }
   }
 
@@ -601,7 +619,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       return this.errorResponse("Empty response body", 502);
     }
     
-    const cid = `chatcmpl-deepseek-web-${crypto.randomUUID().slice(0, 12)}`;
+    const cid = `chatcmpl-kimi-web-${crypto.randomUUID().slice(0, 12)}`;
     const created = Math.floor(Date.now() / 1000);
     
     if (stream) {
@@ -723,7 +741,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     for await (const chunk of this.parseWebStream(responseBody, model, signal)) {
       if (chunk.error) {
         return new Response(JSON.stringify({
-          error: { message: chunk.error, type: "upstream_error", code: "DEEPSEEK-WEB_ERROR" },
+          error: { message: chunk.error, type: "upstream_error", code: "KIMI-WEB_ERROR" },
         }), { status: 502, headers: { "Content-Type": "application/json" } });
       }
       if (chunk.thinking) { thinkingParts.push(chunk.thinking); continue; }
@@ -781,9 +799,12 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
           buffer = buffer.slice(eventEnd + 2);
           
           let eventData = "";
+          let eventType = "";
           for (const line of eventBlock.split("\n")) {
             if (line.startsWith("data: ")) {
               eventData = line.slice(6);
+            } else if (line.startsWith("event: ")) {
+              eventType = line.slice(7);
             }
           }
           
@@ -792,7 +813,27 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
           try {
             const data = JSON.parse(eventData);
             
-            // DeepSeek choices format
+            // Kimi cmpl event format
+            if (eventType === "cmpl" || data.text) {
+              if (typeof data.text === "string") {
+                yield { delta: data.text };
+              }
+              if (data.message_id) {
+                yield { messageId: data.message_id };
+              }
+              continue;
+            }
+            
+            // Kimi thinking format
+            if (data.type === "thinking" || data.thinking) {
+              const content = data.content || data.thinking;
+              if (typeof content === "string") {
+                yield { thinking: content };
+              }
+              continue;
+            }
+            
+            // OpenAI choices format
             if (data.choices && Array.isArray(data.choices)) {
               for (const choice of data.choices) {
                 if (choice.delta?.content) {
@@ -808,45 +849,18 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
               }
             }
             
-            // DeepSeek v0 API format
-            if (data.v) {
-              if (typeof data.v === "string") {
-                yield { delta: data.v };
-              } else if (data.v.response?.message_id) {
-                yield { messageId: data.v.response.message_id };
-              }
+            // Direct content
+            if (data.content && typeof data.content === "string") {
+              yield { delta: data.content };
             }
             
-            // Content fragments
-            if (data.p === "response/content" || data.o === "APPEND") {
-              if (typeof data.v === "string") {
-                yield { delta: data.v };
-              }
-            }
-            
-            // Thinking content
-            if (data.p === "response/thinking_content") {
-              if (typeof data.v === "string") {
-                yield { thinking: data.v };
-              }
-            }
-            
-            // Status updates
-            if (data.p === "response/status" && data.v === "FINISHED") {
-              yield { done: true };
-              return;
-            }
-            
-            // Direct completion
-            if (data.completion) {
-              yield { delta: data.completion };
-            }
-            
+            // Message ID
             if (data.message_id) {
               yield { messageId: data.message_id };
             }
             
-            if (data.stop_reason || data.done) {
+            // Done
+            if (data.done || data.stop_reason) {
               yield { done: true };
               return;
             }
@@ -865,24 +879,24 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
   // ============ Error Handling ============
 
   handleWebError(response, status, logger) {
-    let errMsg = `DeepSeek returned HTTP ${status}`;
+    let errMsg = `Kimi returned HTTP ${status}`;
     if (status === 401 || status === 403) {
-      errMsg = "DeepSeek session expired — update your USER_TOKEN in Providers → DeepSeek Web → Edit";
+      errMsg = "Kimi session expired — update your Bearer token in Providers → Kimi Web → Edit";
     } else if (status === 429) {
-      errMsg = "DeepSeek rate limited — try again shortly";
+      errMsg = "Kimi rate limited — try again shortly";
     } else if (status === 404) {
-      errMsg = "DeepSeek session or endpoint not found";
+      errMsg = "Kimi session or endpoint not found";
     } else if (status === 400) {
-      errMsg = "DeepSeek bad request — check your input";
+      errMsg = "Kimi bad request — check your input";
     } else if (status === 500) {
-      errMsg = "DeepSeek server error — try again later";
+      errMsg = "Kimi server error — try again later";
     } else if (status === 503) {
-      errMsg = "DeepSeek service unavailable — try again later";
+      errMsg = "Kimi service unavailable — try again later";
     }
     
-    logger?.warn?.("DEEPSEEK-WEB", errMsg);
+    logger?.warn?.("KIMI-WEB", errMsg);
     return this.errorResponse(errMsg, status);
   }
 }
 
-export default DeepSeekWebExecutor;
+export default KimiWebExecutor;
