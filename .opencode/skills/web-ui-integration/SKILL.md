@@ -139,6 +139,90 @@ const headers = executor.buildHeaders({ accessToken: 'test' }, true);
 console.log('✅ All tests passed');
 ```
 
+## Provider Status
+
+| Provider | Guest Mode | Registration | CAPTCHA Type |
+|----------|-----------|--------------|--------------|
+| **Z.AI** | ✅ Works (Skip login) | Alibaba Cloud slider | Manual required |
+| **ChatGPT** | ❌ Login required | Turnstile | Manual required |
+| **Grok** | ❌ Login required | SSO-based | N/A |
+
+## Z.AI Integration
+
+### Guest Mode (No Registration)
+
+Z.AI works without login via "Skip for now" button:
+
+```javascript
+import { useZAIGuest, chatWithZAI } from './src/shared/utils/account-registration.js';
+
+// Method 1: Get browser page
+const { page, browser } = await useZAIGuest();
+// Use page for chat...
+
+// Method 2: Send message and get response
+const response = await chatWithZAI('Hello, what model are you?');
+console.log(response);
+```
+
+### Browser Automation Flow
+
+```
+1. goto("https://chat.z.ai")
+2. Click "Sign in" → "Continue with Email" → "Skip for now"
+3. Type in textarea → Press Enter
+4. Wait 15-20s for response
+```
+
+### Traffic Interception
+
+Z.AI API endpoints (from traffic analysis):
+
+```
+POST /api/v2/chat/completions
+Authorization: Bearer <guest-token>
+```
+
+## Browser Automation (puppeteer-extra-stealth)
+
+### Installation
+
+```bash
+npm install puppeteer-extra puppeteer-extra-plugin-stealth puppeteer
+```
+
+### Basic Usage
+
+```javascript
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+puppeteer.use(StealthPlugin());
+
+const browser = await puppeteer.launch({
+  headless: 'new',
+  args: ['--no-sandbox', '--disable-blink-features=AutomationControlled']
+});
+
+const page = await browser.newPage();
+// navigator.webdriver returns false (passes bot detection)
+```
+
+### Human-Like Behavior
+
+```javascript
+function randomDelay(min = 500, max = 2000) {
+  return new Promise(r => setTimeout(r, min + Math.random() * (max - min)));
+}
+
+async function humanType(page, selector, text) {
+  await page.click(selector);
+  for (const char of text) {
+    await page.keyboard.type(char, { delay: 50 + Math.random() * 100 });
+  }
+}
+```
+
 ## Model Capabilities
 
 | Capability | Description |
@@ -147,9 +231,6 @@ console.log('✅ All tests passed');
 | `vision` | Image understanding |
 | `tools` | Function/tool calling |
 | `text2img` | Image generation |
-| `text2video` | Video generation |
-| `speech2text` | Audio transcription |
-| `ocr` | Document parsing |
 
 ## Priority Values
 
@@ -157,64 +238,6 @@ console.log('✅ All tests passed');
 - 140-160: Web UI integrations
 - 120-140: Third-party proxies
 - 100-120: Local providers
-
-## Traffic Interception
-
-Use browser-harness to discover API endpoints:
-
-```bash
-browser-harness <<'PY'
-ensure_real_tab()
-goto_url("https://provider.com")
-wait_for_load()
-
-# Install fetch interceptor
-js("""(function() {
-  window._captured = [];
-  const orig = window.fetch;
-  window.fetch = async (...args) => {
-    window._captured.push({
-      url: args[0],
-      method: args[1]?.method || 'GET',
-      body: args[1]?.body
-    });
-    return orig(...args);
-  };
-  return 'ready';
-})()""")
-
-# Perform actions, then get captured requests
-requests = js("JSON.stringify(window._captured, null, 2)")
-print(requests)
-PY
-```
-
-## Browser Automation
-
-```bash
-# Install
-uv tool install browser-harness
-
-# Basic usage
-browser-harness <<'PY'
-ensure_real_tab()
-goto_url("https://provider.com")
-wait_for_load()
-url = js("window.location.href")
-print(f"URL: {url}")
-PY
-```
-
-## References
-
-See `references/` folder for:
-- `z-ai.md` - Z.AI provider reference
-- `chatgpt-web.md` - ChatGPT Web reference
-- `grok-web.md` - Grok Web reference
-- `free-models.md` - Free models comparison
-- `z-ai-traffic.md` - Intercepted Z.AI traffic
-- `chatgpt-web-traffic.md` - Intercepted ChatGPT traffic
-- `account-registration.md` - Automated registration system
 
 ## Checklist
 
@@ -224,4 +247,4 @@ See `references/` folder for:
 - [ ] Registered in providers/registry/index.js
 - [ ] CLI tool definition added
 - [ ] Test suite passing
-- [ ] Documentation created
+- [ ] Guest mode tested (if applicable)
