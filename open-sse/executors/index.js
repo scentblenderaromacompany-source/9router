@@ -19,6 +19,8 @@ import { XiaomiTokenplanExecutor } from "./xiaomi-tokenplan.js";
 import { MimoFreeExecutor } from "./mimo-free.js";
 import { ChatGPTWebExecutor } from "./chatgpt-web.js";
 import { ZAIExecutor } from "./z-ai.js";
+import { ZAIWebExecutor } from "./z-ai-web.js";
+import { WebUIExecutor } from "./webui-base.js";
 import { DefaultExecutor } from "./default.js";
 
 const executors = {
@@ -46,6 +48,7 @@ const executors = {
   mmf: new MimoFreeExecutor(), // Alias for mimo-free
   "chatgpt-web": new ChatGPTWebExecutor(),
   "z-ai": new ZAIExecutor(),
+  "z-ai-web": new ZAIWebExecutor(),
 };
 
 const defaultCache = new Map();
@@ -83,3 +86,5 @@ export { XiaomiTokenplanExecutor } from "./xiaomi-tokenplan.js";
 export { MimoFreeExecutor } from "./mimo-free.js";
 export { ChatGPTWebExecutor } from "./chatgpt-web.js";
 export { ZAIExecutor } from "./z-ai.js";
+export { ZAIWebExecutor } from "./z-ai-web.js";
+export { WebUIExecutor } from "./webui-base.js";
