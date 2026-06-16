@@ -1,94 +1,377 @@
 import { withCodexReviewModels } from "../models/helpers.js";
 
 export default {
-  id: "codex",
-  priority: 30,
-  alias: "cx",
-  uiAlias: "cx",
-  display: {
-    name: "OpenAI Codex",
-    icon: "code",
-    color: "#3B82F6",
-    website: "https://chatgpt.com/codex",
-    notice: {
-      signupUrl: "https://chatgpt.com/codex",
+  "id": "codex",
+  "priority": 30,
+  "alias": "cx",
+  "uiAlias": "cx",
+  "display": {
+    "name": "OpenAI Codex",
+    "icon": "code",
+    "color": "#3B82F6",
+    "textIcon": "CX",
+    "website": "https://chatgpt.com/codex",
+    "notice": {
+      "signupUrl": "https://chatgpt.com/codex"
     },
-    deprecated: true,
-    deprecationNotice: "RISK_NOTICE",
-    kindNotice: {
-      image: "Requires a ChatGPT Plus (or higher) account. Free accounts are not supported for image generation.",
-    },
+    "deprecated": true,
+    "deprecationNotice": "RISK_NOTICE",
+    "kindNotice": {
+      "image": "Requires a ChatGPT Plus (or higher) account. Free accounts are not supported for image generation."
+    }
   },
-  category: "oauth",
-  thinkingConfig: {
-    options: [
+  "category": "oauth",
+  "thinkingConfig": {
+    "options": [
       "auto",
       "none",
       "low",
       "medium",
-      "high",
+      "high"
     ],
-    defaultMode: "auto",
+    "defaultMode": "auto"
   },
-  transport: {
-    baseUrl: "https://chatgpt.com/backend-api/codex/responses",
-    format: "openai-responses",
-    forceStream: true,
-    headers: {
-      originator: "codex_cli_rs",
-      "User-Agent": "codex_cli_rs/0.136.0",
+  "transport": {
+    "baseUrl": "https://chatgpt.com/backend-api/codex/responses",
+    "format": "openai-responses",
+    "forceStream": true,
+    "headers": {
+      "originator": "codex_cli_rs",
+      "User-Agent": "codex_cli_rs/0.136.0"
     },
-    usage: {
-      url: "https://chatgpt.com/backend-api/wham/usage",
-      resetCreditsConsumeUrl: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume",
-    },
+    "usage": {
+      "url": "https://chatgpt.com/backend-api/wham/usage",
+      "resetCreditsConsumeUrl": "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume"
+    }
   },
-  models: [
-    { id: "gpt-5.5", name: "GPT 5.5" },
-    { id: "gpt-5.5-review", name: "GPT 5.5 Review", upstreamModelId: "gpt-5.5", quotaFamily: "review" },
-    { id: "gpt-5.4", name: "GPT 5.4" },
-    { id: "gpt-5.4-review", name: "GPT 5.4 Review", upstreamModelId: "gpt-5.4", quotaFamily: "review" },
-    { id: "gpt-5.4-mini", name: "GPT 5.4 Mini" },
-    { id: "gpt-5.4-mini-review", name: "GPT 5.4 Mini Review", upstreamModelId: "gpt-5.4-mini", quotaFamily: "review" },
-    { id: "gpt-5.3-codex", name: "GPT 5.3 Codex" },
-    { id: "gpt-5.3-codex-review", name: "GPT 5.3 Codex Review", upstreamModelId: "gpt-5.3-codex", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-xhigh", name: "GPT 5.3 Codex (xHigh)" },
-    { id: "gpt-5.3-codex-xhigh-review", name: "GPT 5.3 Codex (xHigh) Review", upstreamModelId: "gpt-5.3-codex-xhigh", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-high", name: "GPT 5.3 Codex (High)" },
-    { id: "gpt-5.3-codex-high-review", name: "GPT 5.3 Codex (High) Review", upstreamModelId: "gpt-5.3-codex-high", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-low", name: "GPT 5.3 Codex (Low)" },
-    { id: "gpt-5.3-codex-low-review", name: "GPT 5.3 Codex (Low) Review", upstreamModelId: "gpt-5.3-codex-low", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-none", name: "GPT 5.3 Codex (None)" },
-    { id: "gpt-5.3-codex-none-review", name: "GPT 5.3 Codex (None) Review", upstreamModelId: "gpt-5.3-codex-none", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-spark", name: "GPT 5.3 Codex Spark" },
-    { id: "gpt-5.3-codex-spark-review", name: "GPT 5.3 Codex Spark Review", upstreamModelId: "gpt-5.3-codex-spark", quotaFamily: "review" },
-    { id: "gpt-5.5-image", name: "GPT 5.5 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.4-image", name: "GPT 5.4 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.3-image", name: "GPT 5.3 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
+  "models": [
+    {
+      "id": "gpt-5.5",
+      "name": "GPT 5.5",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.5-review",
+      "name": "GPT 5.5 Review",
+      "upstreamModelId": "gpt-5.5",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.4",
+      "name": "GPT 5.4",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.4-review",
+      "name": "GPT 5.4 Review",
+      "upstreamModelId": "gpt-5.4",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "name": "GPT 5.4 Mini",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.4-mini-review",
+      "name": "GPT 5.4 Mini Review",
+      "upstreamModelId": "gpt-5.4-mini",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "name": "GPT 5.3 Codex",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-review",
+      "name": "GPT 5.3 Codex Review",
+      "upstreamModelId": "gpt-5.3-codex",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-xhigh",
+      "name": "GPT 5.3 Codex (xHigh)",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-xhigh-review",
+      "name": "GPT 5.3 Codex (xHigh) Review",
+      "upstreamModelId": "gpt-5.3-codex-xhigh",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-high",
+      "name": "GPT 5.3 Codex (High)",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-high-review",
+      "name": "GPT 5.3 Codex (High) Review",
+      "upstreamModelId": "gpt-5.3-codex-high",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-low",
+      "name": "GPT 5.3 Codex (Low)",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-low-review",
+      "name": "GPT 5.3 Codex (Low) Review",
+      "upstreamModelId": "gpt-5.3-codex-low",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-none",
+      "name": "GPT 5.3 Codex (None)",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-none-review",
+      "name": "GPT 5.3 Codex (None) Review",
+      "upstreamModelId": "gpt-5.3-codex-none",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-spark",
+      "name": "GPT 5.3 Codex Spark",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex-spark-review",
+      "name": "GPT 5.3 Codex Spark Review",
+      "upstreamModelId": "gpt-5.3-codex-spark",
+      "quotaFamily": "review",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
+    },
+    {
+      "id": "gpt-5.5-image",
+      "name": "GPT 5.5 Image",
+      "capabilities": [
+        "text2img",
+        "edit"
+      ],
+      "params": [
+        "size",
+        "quality",
+        "background",
+        "image_detail",
+        "output_format"
+      ],
+      "kind": "image"
+    },
+    {
+      "id": "gpt-5.4-image",
+      "name": "GPT 5.4 Image",
+      "capabilities": [
+        "text2img",
+        "edit"
+      ],
+      "params": [
+        "size",
+        "quality",
+        "background",
+        "image_detail",
+        "output_format"
+      ],
+      "kind": "image"
+    },
+    {
+      "id": "gpt-5.3-image",
+      "name": "GPT 5.3 Image",
+      "capabilities": [
+        "text2img",
+        "edit"
+      ],
+      "params": [
+        "size",
+        "quality",
+        "background",
+        "image_detail",
+        "output_format"
+      ],
+      "kind": "image"
+    }
   ],
-  serviceKinds: ["llm","image"],
-  oauth: {
-    clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
-    authorizeUrl: "https://auth.openai.com/oauth/authorize",
-    tokenUrl: "https://auth.openai.com/oauth/token",
-    scope: "openid profile email offline_access",
-    codeChallengeMethod: "S256",
-    fixedPort: 1455,
-    callbackPath: "/auth/callback",
-    extraParams: {
-      id_token_add_organizations: "true",
-      codex_cli_simplified_flow: "true",
-      originator: "codex_cli_rs",
+  "serviceKinds": [
+    "llm",
+    "image"
+  ],
+  "oauth": {
+    "clientId": "app_EMoamEEZ73f0CkXaXp7hrann",
+    "authorizeUrl": "https://auth.openai.com/oauth/authorize",
+    "tokenUrl": "https://auth.openai.com/oauth/token",
+    "scope": "openid profile email offline_access",
+    "codeChallengeMethod": "S256",
+    "fixedPort": 1455,
+    "callbackPath": "/auth/callback",
+    "extraParams": {
+      "id_token_add_organizations": "true",
+      "codex_cli_simplified_flow": "true",
+      "originator": "codex_cli_rs"
     },
-    refreshLeadMs: 432000000,
-    refresh: {
-      encoding: "form",
-      scope: "openid profile email offline_access",
+    "refreshLeadMs": 432000000,
+    "refresh": {
+      "encoding": "form",
+      "scope": "openid profile email offline_access"
     },
-    maxRefreshAgeMs: 691200000,
-    trackRefreshAt: true,
+    "maxRefreshAgeMs": 691200000,
+    "trackRefreshAt": true
   },
-  features: {
-    usage: true,
-  },
+  "features": {
+    "usage": true
+  }
 };

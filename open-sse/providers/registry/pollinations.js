@@ -23,7 +23,7 @@ export default {
       image: "Free tier: 1 request/15s. Registered: 1 req/5s. Paid: no limits.",
     },
   },
-  category: "imageGen",
+  category: "free",
   authType: "none",
   authHint: "No authentication needed — Pollinations is free",
   transport: {
@@ -44,6 +44,6 @@ export default {
     { id: "grok", name: "Grok Imagine", capabilities: ["text2img"], params: ["width", "height", "seed"] },
     { id: "qwen", name: "Qwen Image", capabilities: ["text2img"], params: ["width", "height", "seed"] },
   ],
-  serviceKinds: ["imageGen"],
+  serviceKinds: ["image"],
   hasProviderSpecificData: false,
 };

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Card, Button, Badge, Input, Modal, CardSkeleton, OAuthModal, KiroOAuthWrapper, CursorAuthModal, IFlowCookieModal, GitLabAuthModal, Toggle, Select, EditConnectionModal, NoAuthProxyCard, ConfirmModal } from "@/shared/components";
-import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, getProviderAlias, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS, THINKING_CONFIG } from "@/shared/constants/providers";
-import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
+import { Card, Button, Badge, Input, Modal, CardSkeleton, Select, Toggle, ConfirmModal, OAuthModal, KiroOAuthWrapper, CursorAuthModal, IFlowCookieModal, GitLabAuthModal } from "@/shared/components";
+import { getModelsByProviderId, getModelKind, CAPACITY_META } from "@/shared/constants/models";
+import { getProviderAlias, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, AI_PROVIDERS, THINKING_CONFIG } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { translate } from "@/i18n/runtime";
@@ -26,7 +26,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export default function ProviderDetailPage() {
+export default function ProviderModelsPage() {
   const params = useParams();
   const router = useRouter();
   const providerId = params.id;
@@ -1069,7 +1069,7 @@ export default function ProviderDetailPage() {
         <CardSkeleton />
       </div>
     );
-}
+  }
 
   if (!providerInfo) {
     return (
@@ -1305,7 +1305,7 @@ export default function ProviderDetailPage() {
                       value={providerStickyLimit}
                       onChange={(e) => handleStickyLimitChange(e.target.value)}
                       placeholder="1"
-                      className="w-14 px-2 py-1 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
+                      className="w-16 px-2 py-1 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
                     />
                   </div>
                 )}
@@ -1315,276 +1315,132 @@ export default function ProviderDetailPage() {
 
           {connections.length === 0 ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 text-primary shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">{isOAuth ? "lock" : "key"}</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm text-text-muted">No connections yet</p>
-                  {hasDualAuthModes && (
-                    <p className="text-xs text-text-muted">
-                      Choose {oauthConnectionLabel} or {apiKeyConnectionLabel}.
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {hasDualAuthModes ? (
-                  <>
-                    <Button size="sm" icon="lock" variant="secondary" onClick={triggerOAuthConnection}>
-                      {oauthConnectionLabel}
-                    </Button>
-                    <Button size="sm" icon="key" onClick={triggerApiKeyConnection}>
-                      {apiKeyConnectionLabel}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    {!isCompatible && providerId === "iflow" && (
-                      <Button size="sm" icon="cookie" variant="secondary" onClick={() => setShowIFlowCookieModal(true)}>
-                        Cookie
-                      </Button>
-                    )}
-                    {providerId === "codex" && (
-                      <Button size="sm" icon="playlist_add" variant="secondary" onClick={() => setShowBulkImportCodex(true)}>
-                        {translate("Bulk Add")}
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      icon="add"
-                      onClick={triggerAddConnection}
-                    >
-                      {isCompatible ? "Add API Key" : (providerId === "iflow" ? "OAuth" : "Add Connection")}
-                    </Button>
-                  </>
-                )}
-              </div>
+              <p className="text-sm text-text-muted">No connections yet</p>
+              <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>Add Connection</Button>
             </div>
           ) : (
             <>
-              {oneByOneSummary && (
-                <div className="mb-4 rounded-lg border border-black/10 bg-black/[0.02] px-3 py-2 text-xs text-text-muted dark:border-white/10 dark:bg-white/[0.03]">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span>Total: {oneByOneSummary.total}</span>
-                    <span>Completed: {oneByOneSummary.completed}</span>
-                    <span>Passed: {oneByOneSummary.passed}</span>
-                    <span>Failed: {oneByOneSummary.failed}</span>
-                    {oneByOneSummary.stopped && (
-                      <span className="text-amber-600 dark:text-amber-400">Stopped</span>
-                    )}
-                    {oneByOneRunning && oneByOneCurrentConnectionId && (
-                      <span>Running: {connections.find((conn) => conn.id === oneByOneCurrentConnectionId)?.name || oneByOneCurrentConnectionId}</span>
-                    )}
+              <div className="flex flex-col divide-y divide-black/[0.03] dark:divide-white/[0.03]">
+                {connections.map((conn, idx) => (
+                  <div key={conn.id} className="flex min-w-0 items-stretch">
+                    <div className="flex-1 min-w-0">
+                      <ConnectionRow
+                        connection={conn}
+                        proxyPools={proxyPools}
+                        isOAuth={isOAuth}
+                        isFirst={idx === 0}
+                        isLast={idx === connections.length - 1}
+                        onMoveUp={() => handleSwapPriority(idx, idx - 1)}
+                        onMoveDown={() => handleSwapPriority(idx, idx + 1)}
+                        onToggleActive={(isActive) => handleUpdateConnectionStatus(conn.id, isActive)}
+                        onUpdateProxy={async (proxyPoolId) => {
+                          try {
+                            const res = await fetch(`/api/providers/${conn.id}`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ proxyPoolId: proxyPoolId || null }),
+                            });
+                            if (res.ok) {
+                              setConnections(prev => prev.map(c =>
+                                c.id === conn.id
+                                  ? { ...c, providerSpecificData: { ...c.providerSpecificData, proxyPoolId: proxyPoolId || null } }
+                                  : c
+                              ));
+                            }
+                          } catch (error) {
+                            console.log("Error updating proxy:", error);
+                          }
+                        }}
+                        onEdit={() => {
+                          setSelectedConnection(conn);
+                          setShowEditModal(true);
+                        }}
+                        onDelete={() => handleDelete(conn.id)}
+                        oneByOneStatus={oneByOneResults[conn.id] || null}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
-              {connectionsList}
-              {!isCompatible && (
-                <div className="mt-4 grid grid-cols-1 gap-2 sm:flex">
-                  {providerId === "iflow" && (
-                    <Button
-                      size="sm"
-                      icon="cookie"
-                      variant="secondary"
-                      onClick={() => setShowIFlowCookieModal(true)}
-                      title="Add connection using browser cookie"
-                      className="w-full sm:w-auto"
-                    >
-                      Cookie
-                    </Button>
-                  )}
-                  {providerId === "codex" && (
-                    <Button
-                      size="sm"
-                      icon="playlist_add"
-                      variant="secondary"
-                      onClick={() => setShowBulkImportCodex(true)}
-                      title={translate("Bulk import codex accounts from JSON")}
-                      className="w-full sm:w-auto"
-                    >
-                      {translate("Bulk Add")}
-                    </Button>
-                  )}
-                  {hasDualAuthModes ? (
-                    <>
-                      <Button
-                        size="sm"
-                        icon="lock"
-                        variant="secondary"
-                        onClick={triggerOAuthConnection}
-                        className="w-full sm:w-auto"
-                      >
-                        {oauthConnectionLabel}
-                      </Button>
-                      <Button
-                        size="sm"
-                        icon="key"
-                        onClick={triggerApiKeyConnection}
-                        className="w-full sm:w-auto"
-                      >
-                        {apiKeyConnectionLabel}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      icon="add"
-                      onClick={triggerAddConnection}
-                      className="w-full sm:w-auto"
-                    >
-                      Add
-                    </Button>
-                  )}
-                </div>
-              )}
+                ))}
+              </div>
+              <div className="mt-4 flex justify-stretch sm:justify-start">
+                <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>Add</Button>
+              </div>
             </>
           )}
         </Card>
       )}
 
-      {/* Models */}
-      <Card>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold">
-            {"Available Models"}
-          </h2>
-          {!isCompatible && (() => {
-            const allIds = [
-              ...models,
-              ...kiloFreeModels.filter((fm) => !models.some((m) => m.id === fm.id)),
-            ].filter((m) => { const k = getModelKind(m); return !k || k === "llm"; }).map((m) => m.id);
-            const activeIds = allIds.filter((id) => !disabledModelIds.includes(id));
-            return (
-              <div className="flex gap-2">
-                {disabledModelIds.length > 0 && (
-                  <Button size="sm" variant="secondary" icon="restart_alt" onClick={handleEnableAll}>
-                    Active All
-                  </Button>
-                )}
-                {activeIds.length > 0 && (
-                  <Button size="sm" variant="secondary" icon="block" onClick={() => handleDisableAll(activeIds)}>
-                    Disable All
-                  </Button>
-                )}
-              </div>
-            );
-          })()}
+      {/* Models Section */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold">Models</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowAddCustomModel(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-primary/40 text-xs text-primary transition-colors hover:border-primary hover:bg-primary/5"
+            >
+              <span className="material-symbols-outlined text-sm">add</span>
+              Add Custom Model
+            </button>
+            {disabledModelIds.length > 0 && (
+              <button
+                onClick={() => handleEnableAll()}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-green-500/40 text-xs text-green-600 dark:text-green-400 transition-colors hover:border-green-500 hover:bg-green-500/5"
+              >
+                <span className="material-symbols-outlined text-sm">check_circle</span>
+                Enable All ({disabledModelIds.length})
+              </button>
+            )}
+          </div>
         </div>
-        {!!modelsTestError && (
-          <p className="text-xs text-red-500 mb-3 break-words">{modelsTestError}</p>
-        )}
+
         {renderModelsSection()}
-      </Card>
+      </div>
 
-      {bulkActionModal}
-
-      {/* Modals */}
-      {providerId === "kiro" ? (
-        <KiroOAuthWrapper
-          isOpen={showOAuthModal}
-          providerInfo={providerInfo}
-          onSuccess={handleOAuthSuccess}
-          onClose={() => setShowOAuthModal(false)}
-        />
-      ) : providerId === "cursor" ? (
-        <CursorAuthModal
-          isOpen={showOAuthModal}
-          onSuccess={handleOAuthSuccess}
-          onClose={() => setShowOAuthModal(false)}
-        />
-      ) : providerId === "gitlab" ? (
-        <GitLabAuthModal
-          isOpen={showOAuthModal}
-          providerInfo={providerInfo}
-          onSuccess={handleOAuthSuccess}
-          onClose={() => setShowOAuthModal(false)}
-        />
-      ) : (
-        <OAuthModal
-          isOpen={showOAuthModal}
-          provider={providerId}
-          providerInfo={providerInfo}
-          onSuccess={handleOAuthSuccess}
-          onClose={() => setShowOAuthModal(false)}
-        />
-      )}
-      {providerId === "iflow" && (
-        <IFlowCookieModal
-          isOpen={showIFlowCookieModal}
-          onSuccess={handleIFlowCookieSuccess}
-          onClose={() => setShowIFlowCookieModal(false)}
-        />
-      )}
-      <AddApiKeyModal
-        isOpen={showAddApiKeyModal}
-        provider={providerId}
-        providerName={providerInfo.name}
-        isCompatible={isCompatible}
-        isAnthropic={isAnthropicCompatible}
-        authType={providerInfo?.authType}
-        authHint={providerInfo?.authHint}
-        website={providerInfo?.website}
-        proxyPools={proxyPools}
-        error={addConnectionError}
-        onSave={handleSaveApiKey}
-        onBulkDone={fetchConnections}
-        onClose={() => {
-          setAddConnectionError("");
-          setShowAddApiKeyModal(false);
-        }}
-      />
-      <EditConnectionModal
-        isOpen={showEditModal}
-        connection={selectedConnection}
-        proxyPools={proxyPools}
-        onSave={handleUpdateConnection}
-        onClose={() => setShowEditModal(false)}
-      />
-      {isCompatible && (
-        <EditCompatibleNodeModal
-          isOpen={showEditNodeModal}
-          node={providerNode}
-          onSave={handleUpdateNode}
-          onClose={() => setShowEditNodeModal(false)}
-          isAnthropic={isAnthropicCompatible}
-        />
-      )}
-      {!isCompatible && (
+      {showAddCustomModel && (
         <AddCustomModelModal
           isOpen={showAddCustomModel}
-          providerAlias={providerStorageAlias}
-          providerDisplayAlias={providerDisplayAlias}
           onSave={async (modelId) => {
-            // For passthrough providers (OpenRouter), use last segment as alias to avoid slash conflicts
-            const alias = providerInfo?.passthroughModels
-              ? modelId.split("/").pop()
-              : modelId;
-            await handleSetAlias(modelId, alias, providerStorageAlias);
+            await handleAddCustomModel(modelId);
             setShowAddCustomModel(false);
           }}
           onClose={() => setShowAddCustomModel(false)}
         />
       )}
 
-      {providerId === "codex" && (
-        <BulkImportCodexModal
-          isOpen={showBulkImportCodex}
-          onClose={() => setShowBulkImportCodex(false)}
-          onSuccess={fetchConnections}
-        />
-      )}
+      <AddApiKeyModal
+        isOpen={showAddApiKeyModal}
+        provider={providerId}
+        proxyPools={proxyPools}
+        onSave={handleSaveApiKey}
+        onClose={() => setShowAddApiKeyModal(false)}
+        error={addConnectionError}
+      />
 
-      {/* AG Risk Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showAgRiskModal}
-        onClose={() => setShowAgRiskModal(false)}
-        onConfirm={handleAgRiskConfirm}
-        title="Risk Notice"
-        message={providerInfo?.deprecationNotice}
-        confirmText="I Understand, Continue"
-        cancelText="Cancel"
-        variant="danger"
+      <EditCompatibleNodeModal
+        isOpen={showEditNodeModal}
+        providerId={providerId}
+        onSave={handleUpdateNode}
+        onClose={() => setShowEditNodeModal(false)}
+      />
+
+      <BulkImportCodexModal
+        isOpen={showBulkImportCodex}
+        providerId={providerId}
+        onClose={() => setShowBulkImportCodex(false)}
+        onSuccess={() => {
+          fetchConnections();
+          fetchAliases();
+          setShowBulkImportCodex(false);
+        }}
+      />
+
+      <EditConnectionModal
+        isOpen={showEditModal}
+        connection={selectedConnection}
+        proxyPools={proxyPools}
+        onSave={handleUpdateConnection}
+        onClose={() => setShowEditModal(false)}
       />
 
       {/* Confirm Modal */}
@@ -1596,6 +1452,8 @@ export default function ProviderDetailPage() {
         message={confirmState?.message}
         variant="danger"
       />
+
+      {bulkActionModal}
     </div>
   );
 }

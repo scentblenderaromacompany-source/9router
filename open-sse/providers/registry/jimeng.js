@@ -23,7 +23,7 @@ export default {
       image: "Free via reverse-engineered API. Requires session cookie.",
     },
   },
-  category: "imageGen",
+  category: "free",
   authType: "cookie",
   authHint: "Paste your Jimeng session cookie from browser DevTools",
   transport: {
@@ -36,6 +36,6 @@ export default {
     { id: "jimeng-4.1", name: "Jimeng 4.1", capabilities: ["text2img", "img2img"], params: ["width", "height", "seed", "style"] },
     { id: "jimeng-4", name: "Jimeng 4.0", capabilities: ["text2img", "img2img"], params: ["width", "height", "seed", "style"] },
   ],
-  serviceKinds: ["imageGen"],
+  serviceKinds: ["image"],
   hasProviderSpecificData: false,
 };

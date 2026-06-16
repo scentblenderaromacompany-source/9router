@@ -6,6 +6,7 @@ export default {
     name: "CodeBuddy",
     icon: "smart_toy",
     color: "#006EFF",
+    textIcon: "CB",
     website: "https://copilot.tencent.com",
     notice: {
       signupUrl: "https://copilot.tencent.com",

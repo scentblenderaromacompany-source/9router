@@ -23,7 +23,7 @@ export default {
       image: "Free via reverse-engineered anonymous sessions.",
     },
   },
-  category: "imageGen",
+  category: "free",
   authType: "none",
   authHint: "No authentication needed — uses anonymous sessions",
   transport: {
@@ -33,6 +33,6 @@ export default {
   models: [
     { id: "grok-imagine", name: "Grok Imagine", capabilities: ["text2img"], params: ["width", "height", "seed"] },
   ],
-  serviceKinds: ["imageGen"],
+  serviceKinds: ["image"],
   hasProviderSpecificData: false,
 };

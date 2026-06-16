@@ -23,8 +23,8 @@ export default {
       image: "Schnell: free (Apache 2.0). Pro: API credits required.",
     },
   },
-  category: "imageGen",
-  authType: "apiKey",
+  category: "apikey",
+  authType: "apikey",
   authHint: "Get your API key from https://api.bfl.ml",
   transport: {
     baseUrl: "https://api.bfl.ml",
@@ -40,6 +40,6 @@ export default {
     { id: "flux-2-dev", name: "Flux 2 Dev", capabilities: ["text2img"], params: ["width", "height", "seed", "steps", "guidance"] },
     { id: "flux-2-klein", name: "Flux 2 Klein", capabilities: ["text2img"], params: ["width", "height", "seed", "steps"] },
   ],
-  serviceKinds: ["imageGen"],
+  serviceKinds: ["image"],
   hasProviderSpecificData: false,
 };
