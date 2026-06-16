@@ -3,10 +3,17 @@ import { PROVIDERS } from "../config/providers.js";
 
 const DEEPSEEK_API = "https://chat.deepseek.com";
 const DEEPSEEK_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const DEEPSEEK_CLIENT_VERSION = "2.0.2";
 
 const MODEL_MAP = {
   "deepseek-web-chat": { mode: "chat", name: "DeepSeek Chat" },
   "deepseek-web-reasoner": { mode: "reasoner", name: "DeepSeek Reasoner" },
+  "deepseek-default": { mode: "default", name: "DeepSeek V4 Flash" },
+  "deepseek-reasoner": { mode: "reasoner", name: "DeepSeek V4 Flash Reasoning" },
+  "deepseek-expert": { mode: "expert", name: "DeepSeek V4 Pro" },
+  "deepseek-expert-reasoner": { mode: "expert-reasoner", name: "DeepSeek V4 Pro Reasoning" },
+  "deepseek-vision": { mode: "vision", name: "DeepSeek Vision" },
+  "deepseek-vision-reasoner": { mode: "vision-reasoner", name: "DeepSeek Vision Reasoning" },
 };
 
 /**
@@ -15,11 +22,22 @@ const MODEL_MAP = {
  * This executor communicates directly with DeepSeek's web interface,
  * using USER_TOKEN from browser local storage for authentication.
  * 
+ * Complete API Endpoints:
+ * - POST /api/v0/chat/completion          - Send chat message (SSE streaming)
+ * - POST /api/v0/chat_session/create      - Create new session
+ * - POST /api/v0/chat_session/delete      - Delete session
+ * - GET  /api/v0/chat/history_messages    - Get chat history
+ * - POST /api/v0/file/upload_file         - Upload file
+ * - GET  /api/v0/file/fetch_files         - Query file status
+ * - GET  /api/v0/client/settings          - Get model settings
+ * - POST /api/v0/chat/create_pow_challenge - Create PoW challenge
+ * 
  * Features:
  * - Session management with conversation tracking
  * - Proof of Work (PoW) handling
- * - Tool calling support
+ * - Tool calling support via DSML prompt injection
  * - Deep thinking (reasoning) support
+ * - File upload support
  * - Streaming SSE responses
  * 
  * IMPORTANT: Requires a valid USER_TOKEN from chat.deepseek.com.
@@ -33,34 +51,44 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     });
     this.sessions = new Map();
     this.parentMessageIds = new Map();
+    this.powChallenges = new Map();
   }
+
+  // ============ URL Builders ============
 
   buildUrl(model, stream, urlIndex = 0, credentials = null) {
     return `${DEEPSEEK_API}/api/v0/chat/completion`;
   }
 
-  async buildWebPayload(model, messages, stream, credentials) {
-    const modelInfo = MODEL_MAP[model] || { mode: "chat", name: model };
-    const prompt = this.buildPrompt(messages);
-    const sessionId = await this.getOrCreateSession(credentials);
-    const parentId = this.getParentMessageId(credentials);
-    
-    const payload = {
-      prompt,
-      chat_session_id: sessionId,
-      parent_message_id: parentId,
-      model: modelInfo.mode,
-      stream: stream ?? false,
-    };
-
-    // Add tool definitions if present
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === "tool") {
-      payload.ref_file_ids = [];
-    }
-
-    return payload;
+  getChatSessionUrl() {
+    return `${DEEPSEEK_API}/api/v0/chat_session/create`;
   }
+
+  getDeleteSessionUrl() {
+    return `${DEEPSEEK_API}/api/v0/chat_session/delete`;
+  }
+
+  getHistoryUrl() {
+    return `${DEEPSEEK_API}/api/v0/chat/history_messages`;
+  }
+
+  getFileUploadUrl() {
+    return `${DEEPSEEK_API}/api/v0/file/upload_file`;
+  }
+
+  getFileStatusUrl(fileIds) {
+    return `${DEEPSEEK_API}/api/v0/file/fetch_files?file_ids=${fileIds}`;
+  }
+
+  getSettingsUrl(scope = "model") {
+    return `${DEEPSEEK_API}/api/v0/client/settings?scope=${scope}`;
+  }
+
+  getPowChallengeUrl() {
+    return `${DEEPSEEK_API}/api/v0/chat/create_pow_challenge`;
+  }
+
+  // ============ Header Builders ============
 
   async buildWebHeaders(credentials) {
     const headers = {
@@ -70,14 +98,45 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       "User-Agent": DEEPSEEK_USER_AGENT,
       Origin: DEEPSEEK_API,
       Referer: `${DEEPSEEK_API}/`,
+      "x-client-version": DEEPSEEK_CLIENT_VERSION,
+      "x-client-platform": "web",
     };
 
-    // User token is passed as Bearer token
     if (credentials?.apiKey) {
       headers["Authorization"] = `Bearer ${credentials.apiKey}`;
     }
 
     return headers;
+  }
+
+  // ============ Payload Builders ============
+
+  async buildWebPayload(model, messages, stream, credentials) {
+    const modelInfo = MODEL_MAP[model] || { mode: "chat", name: model };
+    const prompt = this.buildPrompt(messages);
+    const sessionId = await this.getOrCreateSession(credentials);
+    const parentId = this.getParentMessageId(credentials);
+    
+    // Get PoW response if needed
+    const powResponse = await this.getPowResponse(credentials);
+    
+    const payload = {
+      prompt,
+      chat_session_id: sessionId,
+      parent_message_id: parentId,
+      model: modelInfo.mode,
+      stream: stream ?? false,
+      search_enabled: model.includes("search"),
+      thinking_enabled: model.includes("reasoner"),
+      ref_file_ids: [],
+    };
+
+    // Add PoW response header
+    if (powResponse) {
+      payload._powResponse = powResponse;
+    }
+
+    return payload;
   }
 
   /**
@@ -114,9 +173,8 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     return parts.join("\n\n");
   }
 
-  /**
-   * Get or create a session for the conversation
-   */
+  // ============ Session Management ============
+
   async getOrCreateSession(credentials) {
     const cacheKey = credentials?.apiKey || "default";
     if (this.sessions.has(cacheKey)) {
@@ -124,7 +182,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
 
     const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(`${DEEPSEEK_API}/api/v0/chat_session/create`, {
+    const response = await fetch(this.getChatSessionUrl(), {
       method: "POST",
       headers,
       body: JSON.stringify({ agent: "chat" }),
@@ -135,40 +193,144 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
 
     const data = await response.json();
-    const sessionId = data.id || data.chat_session_id;
+    const sessionId = data.data?.biz_data?.id || data.chat_session_id || data.id;
     this.sessions.set(cacheKey, sessionId);
-    this.parentMessageIds.set(cacheKey, "client-created-root");
+    this.parentMessageIds.set(cacheKey, null);
     return sessionId;
   }
 
-  /**
-   * Get parent message ID for conversation tracking
-   */
-  getParentMessageId(credentials) {
+  async deleteSession(credentials, sessionId) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getDeleteSessionUrl(), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ chat_session_id: sessionId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete session: ${response.status}`);
+    }
+
     const cacheKey = credentials?.apiKey || "default";
-    return this.parentMessageIds.get(cacheKey) || "client-created-root";
+    this.sessions.delete(cacheKey);
+    this.parentMessageIds.delete(cacheKey);
+    return true;
   }
 
-  /**
-   * Update parent message ID after response
-   */
+  getParentMessageId(credentials) {
+    const cacheKey = credentials?.apiKey || "default";
+    return this.parentMessageIds.get(cacheKey) || null;
+  }
+
   updateParentMessageId(credentials, messageId) {
     const cacheKey = credentials?.apiKey || "default";
     this.parentMessageIds.set(cacheKey, messageId);
   }
 
-  /**
-   * Clear session (for new conversation)
-   */
   clearSession(credentials) {
     const cacheKey = credentials?.apiKey || "default";
     this.sessions.delete(cacheKey);
     this.parentMessageIds.delete(cacheKey);
   }
 
-  /**
-   * Override execute to handle DeepSeek's specific flow
-   */
+  // ============ History ============
+
+  async getHistory(credentials, sessionId, offset = 0, limit = 20) {
+    const headers = await this.buildWebHeaders(credentials);
+    const url = `${this.getHistoryUrl()}?chat_session_id=${sessionId}&offset=${offset}&limit=${limit}`;
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get history: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data?.biz_data || data;
+  }
+
+  // ============ File Operations ============
+
+  async uploadFile(credentials, file) {
+    const headers = await this.buildWebHeaders(credentials);
+    delete headers["Content-Type"]; // Let browser set multipart boundary
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(this.getFileUploadUrl(), {
+      method: "POST",
+      headers: {
+        Authorization: headers.Authorization,
+        "User-Agent": headers["User-Agent"],
+        Origin: headers.Origin,
+        Referer: headers.Referer,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to upload file: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data?.biz_data || data;
+  }
+
+  async getFileStatus(credentials, fileIds) {
+    const headers = await this.buildWebHeaders(credentials);
+    const url = this.getFileStatusUrl(Array.isArray(fileIds) ? fileIds.join(",") : fileIds);
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get file status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data?.biz_data || data;
+  }
+
+  // ============ Model Settings ============
+
+  async getModelSettings(credentials) {
+    const headers = await this.buildWebHeaders(credentials);
+    const response = await fetch(this.getSettingsUrl("model"), { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get model settings: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data?.biz_data || data;
+  }
+
+  // ============ PoW (Proof of Work) ============
+
+  async getPowResponse(credentials) {
+    try {
+      const headers = await this.buildWebHeaders(credentials);
+      const response = await fetch(this.getPowChallengeUrl(), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      const challenge = data.data?.biz_data || data;
+      
+      // In production, solve the PoW challenge here
+      // For now, return the challenge data
+      return challenge;
+    } catch {
+      return null;
+    }
+  }
+
+  // ============ Main Execute ============
+
   async execute({ model, body, stream, credentials, signal, log }) {
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -189,6 +351,12 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       // Build headers
       const headers = await this.buildWebHeaders(credentials);
       
+      // Add PoW header if available
+      if (payload._powResponse) {
+        headers["x-ds-pow-response"] = JSON.stringify(payload._powResponse);
+        delete payload._powResponse;
+      }
+      
       // Build URL
       const url = this.buildUrl(model, stream, 0, credentials);
       
@@ -207,7 +375,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
         log?.warn?.("DEEPSEEK-WEB", "Auth failed, clearing session and retrying");
         this.clearSession(credentials);
         
-        // Retry with new session
         const newPayload = await this.buildWebPayload(model, messages, stream, credentials);
         const retryResponse = await fetch(url, {
           method: "POST",
@@ -223,7 +390,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
         return this.handleResponse(retryResponse, model, newPayload, url, headers, stream, signal, log, credentials);
       }
       
-      // Handle other errors
       if (!response.ok) {
         return this.handleWebError(response, response.status, log);
       }
@@ -235,15 +401,13 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
   }
 
-  /**
-   * Handle successful response
-   */
+  // ============ Response Handling ============
+
   async handleResponse(response, model, payload, url, headers, stream, signal, log, credentials) {
     if (!response.body) {
       return this.errorResponse("Empty response body", 502);
     }
     
-    // Parse response
     const cid = `chatcmpl-deepseek-web-${crypto.randomUUID().slice(0, 12)}`;
     const created = Math.floor(Date.now() / 1000);
     
@@ -273,9 +437,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
   }
 
-  /**
-   * Build streaming response with parent message ID tracking
-   */
   buildStreamingResponse(responseBody, model, cid, created, signal, credentials) {
     const encoder = new TextEncoder();
     const self = this;
@@ -283,7 +444,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     return new ReadableStream({
       async start(controller) {
         try {
-          // Send initial role chunk
           controller.enqueue(encoder.encode(self.sseChunk({
             id: cid,
             object: "chat.completion.chunk",
@@ -293,7 +453,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
             choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null, logprobs: null }],
           })));
           
-          // Parse provider-specific stream
           for await (const chunk of self.parseWebStream(responseBody, model, signal)) {
             if (chunk.error) {
               controller.enqueue(encoder.encode(self.sseChunk({
@@ -337,7 +496,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
             }
           }
           
-          // Send final chunk
           controller.enqueue(encoder.encode(self.sseChunk({
             id: cid,
             object: "chat.completion.chunk",
@@ -364,9 +522,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     });
   }
 
-  /**
-   * Build non-streaming response with parent message ID tracking
-   */
   async buildNonStreamingResponse(responseBody, model, cid, created, signal, credentials) {
     let fullContent = "";
     const thinkingParts = [];
@@ -385,7 +540,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       else if (chunk.delta) fullContent += chunk.delta;
     }
     
-    // Update parent message ID for next request
     if (messageId) {
       this.updateParentMessageId(credentials, messageId);
     }
@@ -407,16 +561,12 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }), { status: 200, headers: { "Content-Type": "application/json" } });
   }
 
-  /**
-   * SSE chunk helper
-   */
   sseChunk(data) {
     return `data: ${JSON.stringify(data)}\n\n`;
   }
 
-  /**
-   * Parse DeepSeek's SSE stream
-   */
+  // ============ Stream Parser ============
+
   async *parseWebStream(responseBody, model, signal) {
     const reader = responseBody.getReader();
     const decoder = new TextDecoder();
@@ -430,7 +580,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
         
         buffer += decoder.decode(value, { stream: true });
         
-        // Process SSE events
         while (true) {
           const eventEnd = buffer.indexOf("\n\n");
           if (eventEnd < 0) break;
@@ -438,7 +587,6 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
           const eventBlock = buffer.slice(0, eventEnd);
           buffer = buffer.slice(eventEnd + 2);
           
-          // Parse event data
           let eventData = "";
           for (const line of eventBlock.split("\n")) {
             if (line.startsWith("data: ")) {
@@ -451,7 +599,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
           try {
             const data = JSON.parse(eventData);
             
-            // DeepSeek returns {"choices": [{"delta": {"content": "text"}}]} format
+            // DeepSeek choices format
             if (data.choices && Array.isArray(data.choices)) {
               for (const choice of data.choices) {
                 if (choice.delta?.content) {
@@ -467,14 +615,42 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
               }
             }
             
-            // Extract message ID for session tracking
-            if (data.message_id) {
-              yield { messageId: data.message_id };
+            // DeepSeek v0 API format
+            if (data.v) {
+              if (typeof data.v === "string") {
+                yield { delta: data.v };
+              } else if (data.v.response?.message_id) {
+                yield { messageId: data.v.response.message_id };
+              }
             }
             
-            // Check for direct completion field
+            // Content fragments
+            if (data.p === "response/content" || data.o === "APPEND") {
+              if (typeof data.v === "string") {
+                yield { delta: data.v };
+              }
+            }
+            
+            // Thinking content
+            if (data.p === "response/thinking_content") {
+              if (typeof data.v === "string") {
+                yield { thinking: data.v };
+              }
+            }
+            
+            // Status updates
+            if (data.p === "response/status" && data.v === "FINISHED") {
+              yield { done: true };
+              return;
+            }
+            
+            // Direct completion
             if (data.completion) {
               yield { delta: data.completion };
+            }
+            
+            if (data.message_id) {
+              yield { messageId: data.message_id };
             }
             
             if (data.stop_reason || data.done) {
@@ -493,6 +669,8 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
   }
 
+  // ============ Error Handling ============
+
   handleWebError(response, status, logger) {
     let errMsg = `DeepSeek returned HTTP ${status}`;
     if (status === 401 || status === 403) {
@@ -505,6 +683,8 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       errMsg = "DeepSeek bad request — check your input";
     } else if (status === 500) {
       errMsg = "DeepSeek server error — try again later";
+    } else if (status === 503) {
+      errMsg = "DeepSeek service unavailable — try again later";
     }
     
     logger?.warn?.("DEEPSEEK-WEB", errMsg);

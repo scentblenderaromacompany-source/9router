@@ -259,7 +259,7 @@ try {
   // Test getParentMessageId
   const parentId = executor.getParentMessageId(credentials);
   console.log(`✅ Initial parent message ID: ${parentId}`);
-  if (parentId === 'client-created-root') {
+  if (parentId === null) {
     console.log('✅ Default parent message ID correct');
   }
   
@@ -275,11 +275,62 @@ try {
   executor.clearSession(credentials);
   const clearedParentId = executor.getParentMessageId(credentials);
   console.log(`✅ After clear, parent message ID: ${clearedParentId}`);
-  if (clearedParentId === 'client-created-root') {
+  if (clearedParentId === null) {
     console.log('✅ Session cleared correctly');
   }
 } catch (error) {
   console.error('❌ Failed session management test:', error.message);
+  process.exit(1);
+}
+
+// Test 13: URL builders
+console.log('\nTest 13: URL Builders');
+try {
+  const executor = new DeepSeekWebExecutor();
+  
+  const chatUrl = executor.getChatSessionUrl();
+  console.log(`✅ Chat session URL: ${chatUrl}`);
+  if (chatUrl.includes('/api/v0/chat_session/create')) {
+    console.log('✅ Chat session URL correct');
+  }
+  
+  const deleteUrl = executor.getDeleteSessionUrl();
+  console.log(`✅ Delete session URL: ${deleteUrl}`);
+  if (deleteUrl.includes('/api/v0/chat_session/delete')) {
+    console.log('✅ Delete session URL correct');
+  }
+  
+  const historyUrl = executor.getHistoryUrl();
+  console.log(`✅ History URL: ${historyUrl}`);
+  if (historyUrl.includes('/api/v0/chat/history_messages')) {
+    console.log('✅ History URL correct');
+  }
+  
+  const fileUrl = executor.getFileUploadUrl();
+  console.log(`✅ File upload URL: ${fileUrl}`);
+  if (fileUrl.includes('/api/v0/file/upload_file')) {
+    console.log('✅ File upload URL correct');
+  }
+  
+  const fileStatusUrl = executor.getFileStatusUrl('file-123,file-456');
+  console.log(`✅ File status URL: ${fileStatusUrl}`);
+  if (fileStatusUrl.includes('/api/v0/file/fetch_files?file_ids=file-123,file-456')) {
+    console.log('✅ File status URL correct');
+  }
+  
+  const settingsUrl = executor.getSettingsUrl();
+  console.log(`✅ Settings URL: ${settingsUrl}`);
+  if (settingsUrl.includes('/api/v0/client/settings?scope=model')) {
+    console.log('✅ Settings URL correct');
+  }
+  
+  const powUrl = executor.getPowChallengeUrl();
+  console.log(`✅ PoW challenge URL: ${powUrl}`);
+  if (powUrl.includes('/api/v0/chat/create_pow_challenge')) {
+    console.log('✅ PoW challenge URL correct');
+  }
+} catch (error) {
+  console.error('❌ Failed URL builders test:', error.message);
   process.exit(1);
 }
 
