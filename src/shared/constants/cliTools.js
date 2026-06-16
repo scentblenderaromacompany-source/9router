@@ -303,6 +303,96 @@ export const CLI_TOOLS = {
 }`,
     },
   },
+  z_ai_web: {
+    id: "z-ai-web",
+    name: "Z.AI Web (Free)",
+    icon: "terminal",
+    color: "#7c3aed",
+    description: "Z.AI Web UI integration with guest mode (no login required)",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Z.AI Web works without registration via guest mode. Use 'Skip for now' button on login page.",
+      },
+      {
+        type: "info",
+        text: "Free models: GLM-4.7-Flash, GLM-4.5-Flash. CAPTCHA may appear on registration.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "No Login Required",
+        desc: "Z.AI Web works in guest mode. The provider will automatically skip login.",
+      },
+      {
+        step: 2,
+        title: "Add Z.AI Web Provider",
+        desc: "Go to Providers → Add New → Select 'Z.AI Web (Free)'",
+      },
+      {
+        step: 3,
+        title: "Select Model",
+        desc: "Choose from glm-4.7, glm-4.7-flash, glm-4.5-flash, or add custom Z.AI models.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "z-ai-web",
+  "model": "glm-4.7"
+}`,
+    },
+  },
+  grok_web: {
+    id: "grok-web",
+    name: "Grok Web (Subscription)",
+    icon: "terminal",
+    color: "#1DA1F2",
+    description: "Grok Web UI integration with sso cookie authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your Grok account sso cookie to access Grok models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports Grok 3, 4, and 4.1 models including thinking variants.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your SSO Cookie",
+        desc: "Visit https://grok.com while logged in, open Developer Tools (F12) → Application → Cookies → copy the 'sso' value.",
+      },
+      {
+        step: 2,
+        title: "Add Grok Web Provider",
+        desc: "Go to Providers → Add New → Select 'Grok Web (Subscription)'",
+      },
+      {
+        step: 3,
+        title: "Paste SSO Cookie",
+        desc: "Paste your sso cookie value in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from grok-3, grok-4, grok-4.1-mini, or add custom Grok models.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "grok-web",
+  "model": "grok-4",
+  "apiKey": "<your-grok-sso-cookie>"
+}`,
+    },
+  },
   cowork: {
     id: "cowork",
     name: "Claude Cowork",
