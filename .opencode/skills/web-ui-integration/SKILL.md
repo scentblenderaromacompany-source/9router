@@ -69,6 +69,10 @@ export default {
 | `vision` | Image understanding |
 | `tools` | Function/tool calling |
 | `text2img` | Image generation |
+| `text2video` | Video generation |
+| `image2video` | Image-to-video |
+| `speech2text` | Audio transcription |
+| `ocr` | Document/layout parsing |
 | `edit` | Image editing |
 
 ### Common Priority Values
@@ -645,6 +649,529 @@ click_at_xy(100, 200)
 PY
 ```
 
+## Traffic Interception for API Discovery
+
+Use browser-harness to intercept web UI traffic and discover API endpoints, authentication patterns, and request formats.
+
+### Basic Traffic Interception
+
+```bash
+browser-harness <<'PY'
+import time
+
+# Open the target site
+new_tab("https://provider.com")
+wait_for_load()
+time.sleep(3)
+
+# Install fetch interceptor
+intercept_js = """
+(function() {
+    window._capturedRequests = [];
+    
+    // Patch fetch
+    const origFetch = window.fetch;
+    window.fetch = async function(...args) {
+        const [url, options] = args;
+        window._capturedRequests.push({
+            type: 'fetch',
+            url: typeof url === 'string' ? url : url?.url,
+            method: options?.method || 'GET',
+            headers: options?.headers,
+            body: options?.body,
+            time: Date.now()
+        });
+        return origFetch.apply(this, args);
+    };
+    
+    // Patch XMLHttpRequest
+    const origOpen = XMLHttpRequest.prototype.open;
+    const origSend = XMLHttpRequest.prototype.send;
+    const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+    
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+        this._method = method;
+        this._url = url;
+        this._headers = {};
+        return origOpen.call(this, method, url, ...rest);
+    };
+    
+    XMLHttpRequest.prototype.setRequestHeader = function(name, value) {
+        if (this._headers) this._headers[name] = value;
+        return origSetHeader.call(this, name, value);
+    };
+    
+    XMLHttpRequest.prototype.send = function(body) {
+        window._capturedRequests.push({
+            type: 'xhr',
+            url: this._url,
+            method: this._method,
+            headers: this._headers,
+            body: body,
+            time: Date.now()
+        });
+        return origSend.call(this, body);
+    };
+    
+    return 'Interception ready';
+})()
+"""
+
+js(intercept_js)
+
+# Perform actions (type message, click buttons, etc.)
+# ... user interactions ...
+
+# Wait for requests
+time.sleep(5)
+
+# Get captured requests
+requests = js("JSON.stringify(window._capturedRequests || [], null, 2)")
+print(requests)
+PY
+```
+
+### Analyze API Patterns
+
+```bash
+browser-harness <<'PY'
+import time
+
+# After capturing requests, analyze them
+analyze_js = """
+(function() {
+    const requests = window._capturedRequests || [];
+    
+    // Group by endpoint
+    const endpoints = {};
+    requests.forEach(r => {
+        const url = new URL(r.url, window.location.origin);
+        const path = url.pathname;
+        if (!endpoints[path]) endpoints[path] = [];
+        endpoints[path].push({
+            method: r.method,
+            hasBody: !!r.body,
+            bodyPreview: r.body ? r.body.substring(0, 200) : null,
+            headers: r.headers
+        });
+    });
+    
+    // Find auth patterns
+    const authPatterns = requests.filter(r => 
+        r.headers?.Authorization || 
+        r.headers?.authorization ||
+        r.url.includes('token') ||
+        r.url.includes('api_key')
+    ).map(r => ({
+        url: r.url.substring(0, 100),
+        authHeader: r.headers?.Authorization || r.headers?.authorization,
+        hasToken: r.url.includes('token')
+    }));
+    
+    return JSON.stringify({
+        totalRequests: requests.length,
+        endpoints,
+        authPatterns,
+        uniqueMethods: [...new Set(requests.map(r => r.method))]
+    }, null, 2;
+})()
+"""
+
+analysis = js(analyze_js)
+print(analysis)
+PY
+```
+
+### Extract Request/Response Format
+
+```bash
+browser-harness <<'PY'
+import time
+
+# Capture full request details
+capture_detail_js = """
+(function() {
+    const requests = window._capturedRequests || [];
+    
+    // Find chat/API completion requests
+    const apiRequests = requests.filter(r => 
+        r.url.includes('chat') || 
+        r.url.includes('completion') ||
+        r.url.includes('api')
+    );
+    
+    return apiRequests.map(r => {
+        let bodyParsed = null;
+        try {
+            bodyParsed = JSON.parse(r.body);
+        } catch(e) {
+            bodyParsed = r.body;
+        }
+        
+        return {
+            endpoint: r.url,
+            method: r.method,
+            requestBody: bodyParsed,
+            headers: r.headers
+        };
+    });
+})()
+"""
+
+details = js(capture_detail_js)
+print(details)
+PY
+```
+
+### Monitor Network via Performance API
+
+```bash
+browser-harness <<'PY'
+# Use Performance API for all network entries
+network_js = """
+(function() {
+    const entries = performance.getEntriesByType('resource');
+    
+    // Filter for API calls
+    const apiCalls = entries.filter(e => {
+        const name = e.name.toLowerCase();
+        return name.includes('api') || 
+               name.includes('chat') || 
+               name.includes('completion') ||
+               name.includes('graphql');
+    }).map(e => ({
+        url: e.name,
+        type: e.initiatorType,
+        duration: Math.round(e.duration),
+        size: e.transferSize,
+        status: e.responseStatus
+    }));
+    
+    // Get XHR/fetch specifically
+    const xhrFetch = entries.filter(e => 
+        e.initiatorType === 'xmlhttprequest' || 
+        e.initiatorType === 'fetch'
+    ).map(e => ({
+        url: e.name,
+        type: e.initiatorType,
+        duration: Math.round(e.duration),
+        size: e.transferSize
+    }));
+    
+    return JSON.stringify({
+        apiCalls: apiCalls.slice(0, 20),
+        xhrFetch: xhrFetch.slice(0, 20),
+        totalEntries: entries.length
+    }, null, 2);
+})()
+"""
+
+print(js(network_js))
+PY
+```
+
+### agent-browser Traffic Interception
+
+Using [agent-browser](https://github.com/vercel-labs/agent-browser):
+
+```bash
+# Install agent-browser
+npm install -g agent-browser
+agent-browser install
+
+# Open site and capture network
+agent-browser open https://provider.com
+agent-browser snapshot -i
+
+# Execute JS to intercept
+agent-browser js "
+window._requests = [];
+const origFetch = window.fetch;
+window.fetch = async (...args) => {
+    window._requests.push({url: args[0], opts: args[1]});
+    return origFetch(...args);
+};
+"
+
+# Perform actions, then check
+agent-browser js "JSON.stringify(window._requests, null, 2)"
+```
+
+### Real-World Example: Z.AI Traffic Analysis
+
+```bash
+browser-harness <<'PY'
+import time
+
+# Open Z.AI
+new_tab("https://chat.z.ai")
+wait_for_load()
+time.sleep(3)
+
+# Close any modals
+js("""(function() {
+    const btn = document.querySelector('[role="dialog"] svg')?.closest('button');
+    if (btn) btn.click();
+    return 'done';
+})()""")
+time.sleep(1)
+
+# Install interceptor
+js("""(function() {
+    window._captured = [];
+    const orig = window.fetch;
+    window.fetch = async (...args) => {
+        window._captured.push({
+            url: typeof args[0] === 'string' ? args[0] : args[0]?.url,
+            method: args[1]?.method || 'GET',
+            body: args[1]?.body
+        });
+        return orig(...args);
+    };
+    return 'ready';
+})()""")
+
+# Send a message
+js("""(function() {
+    const inp = document.getElementById('chat-input');
+    const btn = document.getElementById('send-message-button');
+    if (inp && btn) {
+        inp.value = 'Hello';
+        inp.dispatchEvent(new Event('input', {bubbles: true}));
+        btn.click();
+        return 'sent';
+    }
+    return 'not found';
+})()""")
+
+time.sleep(5)
+
+# Get results
+requests = js("JSON.stringify(window._captured, null, 2)")
+print("API Endpoints Discovered:")
+print(requests)
+
+# Result showed:
+# - POST /api/v2/chat/completions (web UI endpoint)
+# - Query params: token, user_id, requestId, etc.
+# - Body: model, messages, stream, features, variables
+PY
+```
+
+### Key Patterns to Capture
+
+| Pattern | What to Look For |
+|---------|------------------|
+| **Authentication** | Bearer tokens, API keys, cookies, JWT |
+| **Endpoints** | URL paths, query parameters |
+| **Request Body** | JSON structure, required fields |
+| **Headers** | Content-Type, custom headers |
+| **Streaming** | SSE, WebSocket connections |
+| **Error Responses** | Error codes, messages |
+
+### Export Findings
+
+After intercepting traffic, document findings:
+
+```markdown
+## API Discovery: [Provider Name]
+
+### Endpoints
+- **Chat**: `POST /api/v1/chat/completions`
+- **Image**: `POST /api/v1/images/generate`
+
+### Authentication
+- Header: `Authorization: Bearer <token>`
+- Token stored in: `localStorage.token`
+
+### Request Format
+```json
+{
+  "model": "model-id",
+  "messages": [...],
+  "stream": true
+}
+```
+
+### Notes
+- Requires CAPTCHA for anonymous users
+- JWT token expires after 24 hours
+```
+
+## Multi-Endpoint Providers
+
+Some providers (like Z.AI) expose multiple API endpoints for different services. Here's how to implement them:
+
+### Z.AI Example (Complete)
+
+Z.AI provides endpoints for:
+- **Chat**: `/paas/v4/chat/completions`
+- **Image Generation**: `/paas/v4/images/generations`
+- **Video Generation**: `/paas/v4/videos/generations`
+- **Audio Transcription**: `/paas/v4/audio/transcriptions`
+- **OCR/Layout**: `/paas/v4/layout_parsing`
+- **Web Search**: `/paas/v4/web_search`
+- **Web Reader**: `/paas/v4/reader`
+- **Tokenizer**: `/paas/v4/tokenizer`
+
+### Executor Pattern for Multi-Endpoint
+
+```javascript
+buildUrl(model, stream, urlIndex = 0, credentials = null) {
+  const baseUrl = credentials?.providerSpecificData?.baseUrl || this.config.baseUrl;
+  const endpoint = this._getEndpoint(model, credentials);
+  return `${baseUrl}${endpoint}`;
+}
+
+_getEndpoint(model, credentials) {
+  // Check for explicit endpoint override
+  const endpointType = credentials?.providerSpecificData?.endpointType;
+  if (endpointType) {
+    const endpoints = {
+      'chat': '/chat/completions',
+      'image': '/images/generations',
+      'video': '/videos/generations',
+      'audio': '/audio/transcriptions',
+      'ocr': '/layout_parsing',
+      'web-search': '/web_search',
+      'web-reader': '/reader',
+    };
+    return endpoints[endpointType] || '/chat/completions';
+  }
+
+  // Auto-detect from model name
+  if (model?.includes('image') || model?.includes('cogview')) {
+    return '/images/generations';
+  }
+  if (model?.includes('video') || model?.includes('cogvideo')) {
+    return '/videos/generations';
+  }
+  if (model?.includes('asr') || model?.includes('audio')) {
+    return '/audio/transcriptions';
+  }
+  
+  return '/chat/completions';
+}
+
+transformRequest(model, body, stream, credentials) {
+  const endpointType = credentials?.providerSpecificData?.endpointType || 
+                       this._guessEndpointType(model, body);
+  
+  switch (endpointType) {
+    case 'image': return this._transformImageRequest(body, model);
+    case 'video': return this._transformVideoRequest(body, model);
+    case 'audio': return this._transformAudioRequest(body);
+    default: return this._transformChatRequest(model, body, stream);
+  }
+}
+```
+
+### Provider Registry for Multi-Endpoint
+
+```javascript
+models: [
+  // Chat models
+  { id: "glm-5.1", name: "GLM-5.1", capabilities: ["text", "tools"] },
+  
+  // Vision models
+  { id: "glm-5v-turbo", name: "GLM-5V Turbo", capabilities: ["text", "vision", "tools"], kind: "image" },
+  
+  // Image generation
+  { id: "glm-image", name: "GLM-Image", capabilities: ["text2img"], kind: "image" },
+  
+  // Video generation
+  { id: "cogvideox-3", name: "CogVideoX-3", capabilities: ["text2video"], kind: "video" },
+  
+  // Audio
+  { id: "glm-asr-2512", name: "GLM-ASR-2512", capabilities: ["speech2text"], kind: "audio" },
+  
+  // OCR
+  { id: "glm-ocr", name: "GLM-OCR", capabilities: ["ocr"], kind: "image" },
+],
+serviceKinds: ["llm", "image", "video", "audio"],
+```
+
+## Captured Traffic Reference
+
+### ChatGPT Web (Captured 2026-06-16)
+
+**Main Endpoint:**
+```
+POST https://chatgpt.com/backend-anon/f/conversation
+```
+
+**Required Headers:**
+```javascript
+{
+  "accept": "text/event-stream",
+  "content-type": "application/json",
+  "oai-client-build-number": "7511904",
+  "oai-client-version": "prod-a5747f44f9bfe551e0bc9db0a31f22a497f6568a",
+  "oai-device-id": "<uuid>",
+  "oai-language": "en-US",
+  "oai-session-id": "<uuid>",
+  "openai-sentinel-chat-requirements-token": "<jwt>",
+  "openai-sentinel-proof-token": "<base64>",
+  "openai-sentinel-turnstile-token": "<base64>",
+  "x-conduit-token": "<jwt>",
+  "x-oai-turn-trace-id": "<uuid>",
+  "x-openai-target-path": "/backend-api/f/conversation"
+}
+```
+
+**Token Acquisition Flow:**
+1. GET `/backend-anon/f/conversation/prepare` → `conduit_token`
+2. GET `/backend-anon/sentinel/chat-requirements/prepare` → `prepare_token`
+3. Complete Turnstile challenge
+4. GET `/backend-anon/sentinel/chat-requirements/finalize` → `sentinel token`
+5. POST `/backend-anon/f/conversation` with all tokens
+
+**Response Format (SSE):**
+```javascript
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"content": {"parts": ["Response"]}}}}
+
+data: [DONE]
+```
+
+**Key Findings:**
+- Free tier uses GPT-5.5 (not GPT-4o)
+- Anonymous access supported
+- Tokens expire in ~60 seconds
+- Cloudflare Turnstile required
+
+### Z.AI Web (Captured 2026-06-16)
+
+**Auth Endpoint:**
+```
+GET https://chat.z.ai/api/v1/auths/
+```
+
+**Create Chat:**
+```
+POST https://chat.z.ai/api/v1/chats/new
+```
+
+**Chat Completion (Blocked by CAPTCHA):**
+```
+POST https://chat.z.ai/api/v2/chat/completions
+```
+
+**Required Headers:**
+```javascript
+{
+  "authorization": "Bearer <jwt-token>",
+  "x-fe-version": "prod-fe-1.1.54",
+  "x-signature": "<signature-hash>"
+}
+```
+
+**Key Findings:**
+- Guest JWT token from `/api/v1/auths/`
+- Alibaba Cloud CAPTCHA blocks automated access
+- CAPTCHA tokens are single-use
+- Developer API recommended for programmatic access
+
 ## Checklist
 
 - [ ] Provider registry created with models and auth config
@@ -655,6 +1182,7 @@ PY
 - [ ] Test suite created and passing
 - [ ] Documentation created (setup guide)
 - [ ] Image generation support added (if applicable)
+- [ ] Multi-endpoint support added (if applicable)
 - [ ] Browser automation tested (if applicable)
 - [ ] Changes committed on feature branch
 - [ ] Branch pushed to fork

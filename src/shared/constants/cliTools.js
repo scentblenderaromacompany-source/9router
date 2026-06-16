@@ -240,6 +240,69 @@ export const CLI_TOOLS = {
 }`,
     },
   },
+  z_ai: {
+    id: "z-ai",
+    name: "Z.AI (Zhipu)",
+    icon: "terminal",
+    color: "#6366F1",
+    description: "Z.AI integration for GLM models with full tool and vision support",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Z.AI provides access to GLM models (GLM-5.1, GLM-5, GLM-4.7) from Zhipu AI's international platform.",
+      },
+      {
+        type: "info",
+        text: "Supports tool/function calling, vision, and thinking mode on supported models.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get API Key",
+        desc: "Visit https://z.ai/manage-apikey/apikey-list and create a new API key.",
+      },
+      {
+        step: 2,
+        title: "Add Z.AI Provider",
+        desc: "Go to Providers → Add New → Select 'Z.AI (Zhipu)'",
+      },
+      {
+        step: 3,
+        title: "Paste API Key",
+        desc: "Paste your Z.AI API key in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Models",
+        desc: "Choose from glm-5.1, glm-5-turbo, glm-4.7, or add custom Z.AI models.",
+      },
+      {
+        step: 5,
+        title: "Enable Tool Parsing",
+        desc: "Tool parsing and function calling work automatically on all requests.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "z-ai",
+  "models": [
+    "glm-5.1",
+    "glm-5-turbo",
+    "glm-4.7",
+    "glm-4.7-flash"
+  ],
+  "apiKey": "<your-z-ai-api-key>",
+  "supportedCapabilities": [
+    "text",
+    "vision",
+    "tools"
+  ]
+}`,
+    },
+  },
   cowork: {
     id: "cowork",
     name: "Claude Cowork",
