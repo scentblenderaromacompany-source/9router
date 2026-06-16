@@ -80,6 +80,12 @@ export class ChatGPTWebExecutor extends BaseExecutor {
     
     // Vision support
     if (body.vision_detail) transformed.vision_detail = body.vision_detail;
+    
+    // Image generation parameters
+    if (body.size) transformed.size = body.size;
+    if (body.quality) transformed.quality = body.quality;
+    if (body.style) transformed.style = body.style;
+    if (body.response_format) transformed.response_format = body.response_format;
 
     return transformed;
   }
