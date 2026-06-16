@@ -128,6 +128,118 @@ export const CLI_TOOLS = {
     description: "OpenCode AI Terminal Assistant",
     configType: "custom",
   },
+  chat2api: {
+    id: "chat2api",
+    name: "Chat2API",
+    icon: "terminal",
+    color: "#0EA5E9",
+    description: "Chat2API proxy integration — native provider or via external proxy",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "9Router now includes native ChatGPT Web support. Use the built-in 'chatgpt-web' provider for direct access with tool parsing.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Option A: Use Native ChatGPT Web Provider (Recommended)",
+        desc: "Go to Providers → Add ChatGPT Web and configure with your ChatGPT access token.",
+      },
+      {
+        step: 2,
+        title: "Option B: Use Chat2API Proxy (External)",
+        desc: "If you prefer an external proxy, install Chat2API from github.com/Z7ANN/chat2api and configure as OpenAI-compatible.",
+      },
+      {
+        step: 3,
+        title: "Select ChatGPT Models",
+        desc: "Use models like gpt-4o, gpt-4-turbo, gpt-3.5-turbo with full tool parsing support.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `// Native provider config (recommended):
+{
+  "provider": "chatgpt-web",
+  "model": "gpt-4o",
+  "accessToken": "<your-chatgpt-access-token>"
+}
+
+// Or external Chat2API proxy:
+{
+  "name": "Chat2API",
+  "type": "openai-compatible",
+  "prefix": "chat2api",
+  "apiType": "chat",
+  "baseUrl": "http://localhost:8700/v1"
+}`,
+    },
+  },
+  chatgpt_web: {
+    id: "chatgpt-web",
+    name: "ChatGPT Web (Native)",
+    image: "/providers/openai.png",
+    color: "#10A37F",
+    description: "Native ChatGPT Web UI integration with full tool parsing support",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your ChatGPT account access token to access ChatGPT models directly with full function calling support.",
+      },
+      {
+        type: "info",
+        text: "Requires your ChatGPT Plus/Pro subscription. Tool parsing works natively without external proxies.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your Access Token",
+        desc: "Visit https://chatgpt.com/api/auth/session while logged in and copy the 'accessToken' value.",
+      },
+      {
+        step: 2,
+        title: "Add ChatGPT Web Provider",
+        desc: "Go to Providers → Add New → Select 'ChatGPT Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste Access Token",
+        desc: "Paste your access token in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Models",
+        desc: "Choose from gpt-4o, gpt-4-turbo, gpt-3.5-turbo, or add custom ChatGPT models.",
+      },
+      {
+        step: 5,
+        title: "Enable Tool Parsing",
+        desc: "Tool parsing and function calling work automatically on all requests.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "chatgpt-web",
+  "models": [
+    "gpt-4o",
+    "gpt-4-turbo",
+    "gpt-3.5-turbo"
+  ],
+  "accessToken": "<your-chatgpt-access-token>",
+  "supportedCapabilities": [
+    "text",
+    "vision",
+    "tools",
+    "image-generation"
+  ]
+}`,
+    },
+  },
   cowork: {
     id: "cowork",
     name: "Claude Cowork",
