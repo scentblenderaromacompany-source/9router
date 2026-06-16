@@ -549,6 +549,54 @@ amp --model "{{model}}"
   //     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", alias: "flash" },
   //   ],
   // },
+  claude_web: {
+    id: "claude-web",
+    name: "Claude Web (Native)",
+    icon: "terminal",
+    color: "#D97757",
+    description: "Native Claude Web UI integration with sessionKey authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your Claude account sessionKey cookie to access Claude models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports Claude Sonnet 4.6, Opus 4.6, Haiku 4.5, and other Claude models.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your Session Key",
+        desc: "Visit https://claude.ai while logged in, open Developer Tools (F12) → Application → Cookies → copy the 'sessionKey' value.",
+      },
+      {
+        step: 2,
+        title: "Add Claude Web Provider",
+        desc: "Go to Providers → Add New → Select 'Claude Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste Session Key",
+        desc: "Paste your sessionKey cookie value in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5, or add custom Claude models.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "claude-web",
+  "model": "claude-sonnet-4-6",
+  "apiKey": "<your-claude-session-key>"
+}`,
+    },
+  },
 };
 
 // Get all provider models for mapping dropdown

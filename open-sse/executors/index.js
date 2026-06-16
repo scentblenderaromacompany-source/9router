@@ -20,6 +20,7 @@ import { MimoFreeExecutor } from "./mimo-free.js";
 import { ChatGPTWebExecutor } from "./chatgpt-web.js";
 import { ZAIExecutor } from "./z-ai.js";
 import { ZAIWebExecutor } from "./z-ai-web.js";
+import { ClaudeWebExecutor } from "./claude-web.js";
 import { WebUIExecutor } from "./webui-base.js";
 import { DefaultExecutor } from "./default.js";
 
@@ -49,6 +50,7 @@ const executors = {
   "chatgpt-web": new ChatGPTWebExecutor(),
   "z-ai": new ZAIExecutor(),
   "z-ai-web": new ZAIWebExecutor(),
+  "claude-web": new ClaudeWebExecutor(),
 };
 
 const defaultCache = new Map();
@@ -87,4 +89,5 @@ export { MimoFreeExecutor } from "./mimo-free.js";
 export { ChatGPTWebExecutor } from "./chatgpt-web.js";
 export { ZAIExecutor } from "./z-ai.js";
 export { ZAIWebExecutor } from "./z-ai-web.js";
+export { ClaudeWebExecutor } from "./claude-web.js";
 export { WebUIExecutor } from "./webui-base.js";
