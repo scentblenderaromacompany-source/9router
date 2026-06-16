@@ -23,12 +23,21 @@
  * - grok-imagine-video-1.5-preview - Latest video improvements
  */
 
-export class GrokImagineExecutor {
+import { BaseExecutor } from "./base.js";
+
+export class GrokImagineExecutor extends BaseExecutor {
   constructor() {
-    this.providerId = "grok-imagine";
-    this.config = {
+    super("grok-imagine", {
       baseUrl: "https://api.x.ai",
-    };
+    });
+  }
+
+  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    return this.config.baseUrl;
+  }
+
+  transformRequest(model, body, stream, credentials) {
+    return body;
   }
 
   // ============ URL builders ============

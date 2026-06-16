@@ -567,9 +567,9 @@ export default function ProvidersPage() {
               key={key}
               providerId={key}
               provider={info}
-              stats={getProviderStats(key, "apikey")}
-              authType="apikey"
-              onToggle={(active) => handleToggleProvider(key, "apikey", active)}
+              stats={getProviderStats(key, "cookie")}
+              authType="cookie"
+              onToggle={(active) => handleToggleProvider(key, "cookie", active)}
             />
           ))}
         </div>
@@ -812,12 +812,14 @@ function ApiKeyProviderCard({
     oauth: "bg-blue-500",
     apikey: "bg-amber-500",
     compatible: "bg-orange-500",
+    cookie: "bg-purple-500",
   };
   const dotLabels = {
     free: "Free",
     oauth: "OAuth",
     apikey: "API Key",
     compatible: "Compatible",
+    cookie: "Cookie",
   };
 
   const getIconPath = () => {

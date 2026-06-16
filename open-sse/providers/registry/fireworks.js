@@ -63,8 +63,7 @@ export default {
       "name": "Nomic Embed Text v1.5",
       "kind": "embedding",
       "capabilities": [
-        "text",
-        "tools"
+        "embedding"
       ],
       "params": [
         "temperature",

@@ -374,8 +374,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -389,8 +388,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -404,8 +402,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -419,9 +416,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "vision",
-        "tools"
+        "text2img"
       ]
     },
     {
@@ -435,8 +430,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "tools"
+        "text2img"
       ]
     },
     {
@@ -449,8 +443,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "tools"
+        "text2img"
       ]
     }
   ],

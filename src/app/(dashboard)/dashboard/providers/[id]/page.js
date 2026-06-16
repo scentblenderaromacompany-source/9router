@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Card, Button, Badge, Input, Modal, CardSkeleton, Select, Toggle, ConfirmModal, OAuthModal, KiroOAuthWrapper, CursorAuthModal, IFlowCookieModal, GitLabAuthModal } from "@/shared/components";
+import { Card, Button, Badge, Input, Modal, CardSkeleton, Select, Toggle, ConfirmModal, OAuthModal, KiroOAuthWrapper, CursorAuthModal, IFlowCookieModal, GitLabAuthModal, EditConnectionModal } from "@/shared/components";
 import { getModelsByProviderId, getModelKind, CAPACITY_META } from "@/shared/constants/models";
 import { getProviderAlias, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, AI_PROVIDERS, THINKING_CONFIG } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
@@ -130,7 +130,7 @@ export default function ProviderModelsPage() {
       }
     : (OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId] || WEB_COOKIE_PROVIDERS[providerId]);
   const authModes = providerInfo?.authModes || [];
-  const isOAuth = !!OAUTH_PROVIDERS[providerId] || !!FREE_PROVIDERS[providerId] || authModes.includes("oauth");
+  const isOAuth = !!OAUTH_PROVIDERS[providerId] || (!!FREE_PROVIDERS[providerId] && !!FREE_PROVIDERS[providerId].authModes?.includes?.("oauth")) || authModes.includes("oauth");
   const supportsApiKeyAuth = !!APIKEY_PROVIDERS[providerId] || authModes.includes("apikey");
   const isFreeNoAuth = !!FREE_PROVIDERS[providerId]?.noAuth;
   const models = getModelsByProviderId(providerId);
@@ -1424,8 +1424,9 @@ export default function ProviderModelsPage() {
       {showAddCustomModel && (
         <AddCustomModelModal
           isOpen={showAddCustomModel}
-          onSave={async (modelId) => {
-            await handleAddCustomModel(modelId);
+          providerAlias={providerAlias}
+          providerDisplayAlias={providerDisplayAlias}
+          onSave={(modelId) => {
             setShowAddCustomModel(false);
           }}
           onClose={() => setShowAddCustomModel(false)}

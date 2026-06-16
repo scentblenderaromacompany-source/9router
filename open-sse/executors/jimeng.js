@@ -45,14 +45,23 @@
  * - GET  /v1/history/videos              - Video generation history
  */
 
-export class JimengExecutor {
+import { BaseExecutor } from "./base.js";
+
+export class JimengExecutor extends BaseExecutor {
   constructor() {
-    this.providerId = "jimeng";
-    this.config = {
+    super("jimeng", {
       baseUrl: "https://jimeng.jianying.com",
       dreaminaUrl: "https://dreamina.com",
       apiBaseUrl: "https://jimeng.jianying.com/mweb/v1",
-    };
+    });
+  }
+
+  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    return this.config.baseUrl;
+  }
+
+  transformRequest(model, body, stream, credentials) {
+    return body;
   }
 
   // ============ URL builders ============

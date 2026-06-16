@@ -24,6 +24,25 @@ export const FILTERS = {
       .filter((m) => m.id?.startsWith("mimo") || m.name?.toLowerCase().includes("mimo"))
       .map((m) => ({ id: m.id, name: m.name || m.id })),
 
+  // New filter for OpenAI native providers (e.g. Vercel AI Gateway)
+  "openai": (models) =>
+    models
+      .filter((m) => m.id && m.name)
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        contextLength: m.context_length || m.contextLength || null,
+        maxTokens: m.max_tokens || m.maxOutputTokens || null,
+        pricing: m.pricing || null,
+        capabilities: m.capabilities || null,
+      }))
+      .sort((a, b) => {
+        if (a.contextLength && b.contextLength) return b.contextLength - a.contextLength;
+        if (a.contextLength) return -1;
+        if (b.contextLength) return 1;
+        return a.name.localeCompare(b.name);
+      }),
+
   // New filter for OpenAI-compatible providers
   "openai-compatible": (models) =>
     models

@@ -31,8 +31,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -43,8 +42,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -52,8 +50,7 @@ export default {
       "name": "Best (Nano + Universal)",
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ],
       "params": [
         "temperature",
@@ -66,8 +63,7 @@ export default {
       "name": "Nano (Fast)",
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ],
       "params": [
         "temperature",

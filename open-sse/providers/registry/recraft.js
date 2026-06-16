@@ -26,8 +26,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "tools"
+        "text2img"
       ]
     },
     {
@@ -40,8 +39,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "tools"
+        "text2img"
       ]
     }
   ],

@@ -27,7 +27,7 @@ export class CircuitBreaker {
         console.log(`Circuit breaker for provider ${this.providerId} moving to HALF_OPEN state`);
       } else {
         throw new FetchError(
-          `Circuit breaker is OPEN for provider ${this.providerId}. Too many failures.",
+          `Circuit breaker is OPEN for provider ${this.providerId}. Too many failures.`,
           null,
           false,
           "circuit_breaker",

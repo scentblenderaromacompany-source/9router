@@ -31,8 +31,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -43,8 +42,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -55,8 +53,7 @@ export default {
       ],
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ]
     },
     {
@@ -64,8 +61,7 @@ export default {
       "name": "Nova",
       "kind": "stt",
       "capabilities": [
-        "text",
-        "tools"
+        "stt"
       ],
       "params": [
         "temperature",

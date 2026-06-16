@@ -88,9 +88,7 @@ export default {
       ],
       "kind": "image",
       "capabilities": [
-        "text",
-        "vision",
-        "tools"
+        "text2img"
       ]
     }
   ],

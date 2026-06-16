@@ -29,6 +29,7 @@ export default {
       "name": "Claude Sonnet 4",
       "capabilities": [
         "text",
+        "vision",
         "tools"
       ],
       "params": [
@@ -42,6 +43,7 @@ export default {
       "name": "Claude Opus 4",
       "capabilities": [
         "text",
+        "vision",
         "tools"
       ],
       "params": [
@@ -55,6 +57,7 @@ export default {
       "name": "Claude 3.5 Sonnet",
       "capabilities": [
         "text",
+        "vision",
         "tools"
       ],
       "params": [

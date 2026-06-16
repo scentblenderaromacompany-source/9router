@@ -7,7 +7,7 @@ import Button from "@/shared/components/Button";
 import Input from "@/shared/components/Input";
 import Modal from "@/shared/components/Modal";
 import Toggle from "@/shared/components/Toggle";
-import ConfirmModal from "@/shared/components/ConfirmModal";
+import { ConfirmModal, CardSkeleton } from "@/shared/components";
 import CapacityBadges from "@/shared/components/CapacityBadges";
 import ModelSelectModal from "@/shared/components/ModelSelectModal";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
@@ -81,7 +81,6 @@ export default function ModelsPage() {
         setActiveProviders(providersData.connections || []);
       }
 
-      setSettingsData(settingsData);
     } catch (error) {
       console.log("Error fetching data:", error);
     } finally {
