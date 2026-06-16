@@ -21,6 +21,7 @@ import { ChatGPTWebExecutor } from "./chatgpt-web.js";
 import { ZAIExecutor } from "./z-ai.js";
 import { ZAIWebExecutor } from "./z-ai-web.js";
 import { ClaudeWebExecutor } from "./claude-web.js";
+import { DeepSeekWebExecutor } from "./deepseek-web.js";
 import { WebUIExecutor } from "./webui-base.js";
 import { DefaultExecutor } from "./default.js";
 
@@ -51,6 +52,7 @@ const executors = {
   "z-ai": new ZAIExecutor(),
   "z-ai-web": new ZAIWebExecutor(),
   "claude-web": new ClaudeWebExecutor(),
+  "deepseek-web": new DeepSeekWebExecutor(),
 };
 
 const defaultCache = new Map();
@@ -90,4 +92,5 @@ export { ChatGPTWebExecutor } from "./chatgpt-web.js";
 export { ZAIExecutor } from "./z-ai.js";
 export { ZAIWebExecutor } from "./z-ai-web.js";
 export { ClaudeWebExecutor } from "./claude-web.js";
+export { DeepSeekWebExecutor } from "./deepseek-web.js";
 export { WebUIExecutor } from "./webui-base.js";

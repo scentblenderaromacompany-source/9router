@@ -1,6 +1,6 @@
 ---
 name: web-ui-integration
-description: Use when creating Web UI integrations (like ChatGPT Web, Z.AI, Grok Web, Claude Web) in 9Router. Covers executor creation, provider registry, traffic interception, browser automation, and test suites.
+description: Use when creating Web UI integrations (like ChatGPT Web, Z.AI, Grok Web, Claude Web, DeepSeek Web) in 9Router. Covers executor creation, provider registry, traffic interception, browser automation, and test suites.
 license: MIT
 compatibility: opencode
 metadata:
@@ -147,6 +147,7 @@ console.log('✅ All tests passed');
 | **Claude** | ❌ Login required | Session Key cookie | N/A |
 | **ChatGPT** | ❌ Login required | Turnstile | Manual required |
 | **Grok** | ❌ Login required | SSO-based | N/A |
+| **DeepSeek** | ❌ Login required | User Token (local storage) | N/A |
 
 ## Z.AI Integration
 
@@ -235,6 +236,61 @@ POST /api/organizations/{org_id}/chat_conversations/{conv_id}/completion  # Send
   "apiKey": "<your-session-key>"
 }
 ```
+
+## DeepSeek Web Integration
+
+### Authentication
+
+DeepSeek requires a `USER_TOKEN` from browser local storage:
+
+1. Login to https://chat.deepseek.com
+2. Open Developer Tools (F12) → Application → Local Storage
+3. Find `chat.deepseek.com` → copy the `USER_TOKEN` value
+4. Use as `apiKey` in provider config
+
+### API Endpoints
+
+```
+POST /api/v0/chat/completion          # Send message (SSE streaming)
+POST /api/v0/chat_session/create      # Create new session
+POST /api/v0/chat_session/delete      # Delete session
+GET  /api/v0/chat/history_messages    # Get chat history
+```
+
+### Request Format
+
+```json
+{
+  "prompt": "Hello, how are you?",
+  "chat_session_id": "session-id",
+  "model": "chat",
+  "stream": true
+}
+```
+
+### Available Models
+
+| Model ID | Name |
+|----------|------|
+| `deepseek-web-chat` | DeepSeek Chat (Web) |
+| `deepseek-web-reasoner` | DeepSeek Reasoner (Web) |
+
+### Usage Example
+
+```javascript
+// Provider config
+{
+  "provider": "deepseek-web",
+  "model": "deepseek-web-chat",
+  "apiKey": "<your-deepseek-user-token>"
+}
+```
+
+### Notes
+
+- DeepSeek requires Proof of Work (PoW) for some endpoints
+- Sessions are cached and reused for multi-turn conversations
+- Reasoner mode enables chain-of-thought thinking
 
 ## Browser Automation (puppeteer-extra-stealth)
 
