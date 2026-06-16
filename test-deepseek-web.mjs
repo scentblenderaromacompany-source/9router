@@ -7,97 +7,106 @@ import { DeepSeekWebExecutor } from './open-sse/executors/deepseek-web.js';
 
 console.log('🧪 DeepSeek Web Integration Tests\n');
 
+let passed = 0;
+let failed = 0;
+
+function assert(condition, message) {
+  if (condition) {
+    console.log(`✅ ${message}`);
+    passed++;
+  } else {
+    console.error(`❌ ${message}`);
+    failed++;
+  }
+}
+
 // Test 1: Executor instantiation
 console.log('Test 1: Executor Instantiation');
 try {
   const executor = new DeepSeekWebExecutor();
-  console.log('✅ DeepSeekWebExecutor instantiated successfully');
-  console.log(`   Provider ID: ${executor.provider}`);
+  assert(executor.provider === 'deepseek-web', 'Provider ID is deepseek-web');
+  assert(typeof executor.execute === 'function', 'Has execute method');
 } catch (error) {
-  console.error('❌ Failed to instantiate executor:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 2: Build URL - chat completion endpoint
-console.log('\nTest 2: Build URL - Chat Completion Endpoint');
+// Test 2: Build URL
+console.log('\nTest 2: Build URL');
 try {
   const executor = new DeepSeekWebExecutor();
-  const url = executor.buildUrl('deepseek-web-chat', true, 0, null);
-  console.log(`✅ Built URL: ${url}`);
-  if (url.includes('chat.deepseek.com/api/v0/chat/completion')) {
-    console.log('✅ Chat completion endpoint correct');
-  }
+  const url = executor.buildUrl('deepseek-default', true, 0, null);
+  assert(url === 'https://chat.deepseek.com/api/v0/chat/completion', 'Main endpoint correct');
 } catch (error) {
-  console.error('❌ Failed to build URL:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 3: Build web headers with user token
-console.log('\nTest 3: Build Web Headers with User Token');
+// Test 3: URL builders
+console.log('\nTest 3: URL Builders');
 try {
   const executor = new DeepSeekWebExecutor();
-  const credentials = { apiKey: 'test-user-token-12345' };
-  const headers = await executor.buildWebHeaders(credentials);
-  console.log(`✅ Built headers:`, Object.keys(headers));
-  if (headers.Authorization === 'Bearer test-user-token-12345') {
-    console.log('✅ User token applied correctly');
-  }
-  if (headers['Content-Type'] === 'application/json') {
-    console.log('✅ Content-Type set correctly');
-  }
-  if (headers['Accept'] === 'text/event-stream') {
-    console.log('✅ Streaming headers set correctly');
-  }
-  if (headers.Origin === 'https://chat.deepseek.com') {
-    console.log('✅ Origin header set correctly');
-  }
+  assert(executor.getChatSessionUrl().includes('/api/v0/chat_session/create'), 'Session create URL');
+  assert(executor.getDeleteSessionUrl().includes('/api/v0/chat_session/delete'), 'Session delete URL');
+  assert(executor.getHistoryUrl().includes('/api/v0/chat/history_messages'), 'History URL');
+  assert(executor.getFileUploadUrl().includes('/api/v0/file/upload_file'), 'File upload URL');
+  assert(executor.getFileStatusUrl('test').includes('/api/v0/file/fetch_files'), 'File status URL');
+  assert(executor.getSettingsUrl().includes('/api/v0/client/settings'), 'Settings URL');
+  assert(executor.getPowChallengeUrl().includes('/api/v0/chat/create_pow_challenge'), 'PoW URL');
 } catch (error) {
-  console.error('❌ Failed to build headers:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 4: Build web headers without credentials
-console.log('\nTest 4: Build Web Headers without Credentials');
+// Test 4: Build headers with token
+console.log('\nTest 4: Build Headers');
+try {
+  const executor = new DeepSeekWebExecutor();
+  const headers = await executor.buildWebHeaders({ apiKey: 'test-token-12345' });
+  assert(headers.Authorization === 'Bearer test-token-12345', 'Bearer token set');
+  assert(headers['Content-Type'] === 'application/json', 'Content-Type set');
+  assert(headers['Accept'] === 'text/event-stream', 'Accept set');
+  assert(headers.Origin === 'https://chat.deepseek.com', 'Origin set');
+  assert(headers['x-client-version'] === '2.0.2', 'Client version set');
+  assert(headers['x-client-platform'] === 'web', 'Client platform set');
+} catch (error) {
+  console.error('❌ Failed:', error.message);
+  process.exit(1);
+}
+
+// Test 5: Build headers without token
+console.log('\nTest 5: Build Headers (No Token)');
 try {
   const executor = new DeepSeekWebExecutor();
   const headers = await executor.buildWebHeaders(null);
-  console.log(`✅ Built headers without credentials`);
-  if (headers.Authorization === undefined) {
-    console.log('✅ No Authorization header when no credentials');
-  }
+  assert(headers.Authorization === undefined, 'No Authorization header');
 } catch (error) {
-  console.error('❌ Failed to build headers without credentials:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 5: Build prompt from messages
-console.log('\nTest 5: Build Prompt from Messages');
+// Test 6: Build prompt
+console.log('\nTest 6: Build Prompt');
 try {
   const executor = new DeepSeekWebExecutor();
   const messages = [
-    { role: 'system', content: 'You are a helpful assistant.' },
-    { role: 'user', content: 'Hello!' },
-    { role: 'assistant', content: 'Hi there!' },
+    { role: 'system', content: 'You are helpful.' },
+    { role: 'user', content: 'Hi' },
+    { role: 'assistant', content: 'Hello!' },
     { role: 'user', content: 'How are you?' }
   ];
   const prompt = executor.buildPrompt(messages);
-  console.log(`✅ Built prompt:\n${prompt}`);
-  if (prompt.includes('[System] You are a helpful assistant.')) {
-    console.log('✅ System message formatted correctly');
-  }
-  if (prompt.includes('Hello!')) {
-    console.log('✅ User message formatted correctly');
-  }
-  if (prompt.includes('[Assistant] Hi there!')) {
-    console.log('✅ Assistant message formatted correctly');
-  }
+  assert(prompt.includes('[System] You are helpful.'), 'System message');
+  assert(prompt.includes('Hi'), 'User message');
+  assert(prompt.includes('[Assistant] Hello!'), 'Assistant message');
+  assert(prompt.includes('How are you?'), 'Last user message');
 } catch (error) {
-  console.error('❌ Failed to build prompt:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 6: Build prompt with array content
-console.log('\nTest 6: Build Prompt with Array Content');
+// Test 7: Build prompt with array content
+console.log('\nTest 7: Build Prompt (Array Content)');
 try {
   const executor = new DeepSeekWebExecutor();
   const messages = [
@@ -107,231 +116,156 @@ try {
     ]}
   ];
   const prompt = executor.buildPrompt(messages);
-  console.log(`✅ Built prompt from array content: ${prompt}`);
-  if (prompt.includes('Hello World')) {
-    console.log('✅ Array content joined correctly');
-  }
+  assert(prompt.includes('Hello World'), 'Array content joined');
 } catch (error) {
-  console.error('❌ Failed to build prompt with array content:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 7: Build web payload
-console.log('\nTest 7: Build Web Payload');
+// Test 8: Build payload
+console.log('\nTest 8: Build Payload');
 try {
   const executor = new DeepSeekWebExecutor();
-  const messages = [{ role: 'user', content: 'Hello!' }];
+  const messages = [{ role: 'user', content: 'Test' }];
   const credentials = { apiKey: 'test-token' };
-  const payload = await executor.buildWebPayload('deepseek-web-chat', messages, true, credentials);
-  console.log(`✅ Built payload:`, Object.keys(payload));
-  if (payload.model === 'chat') {
-    console.log('✅ Model mode mapped correctly');
-  }
-  if (payload.stream === true) {
-    console.log('✅ Stream flag set correctly');
-  }
-  if (payload.prompt.includes('Hello!')) {
-    console.log('✅ Prompt included in payload');
-  }
-  if (payload.chat_session_id) {
-    console.log('✅ Session ID included in payload');
-  }
+  
+  // Mock session creation by setting directly
+  executor.sessions.set('test-token', 'mock-session-id');
+  executor.parentMessageIds.set('test-token', null);
+  
+  const payload = await executor.buildWebPayload('deepseek-default', messages, true, credentials);
+  assert(payload.prompt === 'Test', 'Prompt set');
+  assert(payload.model === 'default', 'Model set');
+  assert(payload.stream === true, 'Stream set');
+  assert(payload.chat_session_id === 'mock-session-id', 'Session ID set');
+  assert(payload.ref_file_ids !== undefined, 'ref_file_ids present');
+  assert(payload.search_enabled !== undefined, 'search_enabled present');
+  assert(payload.thinking_enabled !== undefined, 'thinking_enabled present');
 } catch (error) {
-  console.error('❌ Failed to build payload:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 8: Model mapping
-console.log('\nTest 8: Model Mapping');
+// Test 9: Model mapping
+console.log('\nTest 9: Model Mapping');
 try {
   const executor = new DeepSeekWebExecutor();
-  const testCases = [
-    { input: 'deepseek-web-chat', expected: 'chat' },
+  const models = [
+    { input: 'deepseek-default', expected: 'default' },
+    { input: 'deepseek-reasoner', expected: 'reasoner' },
+    { input: 'deepseek-search', expected: 'search' },
+    { input: 'deepseek-expert', expected: 'expert' },
+    { input: 'deepseek-expert-reasoner', expected: 'expert-reasoner' },
+    { input: 'deepseek-vision', expected: 'vision' },
+    { input: 'deepseek-web-chat', expected: 'default' },
     { input: 'deepseek-web-reasoner', expected: 'reasoner' },
   ];
   
-  for (const { input, expected } of testCases) {
+  for (const { input, expected } of models) {
     const messages = [{ role: 'user', content: 'test' }];
-    const credentials = { apiKey: 'test-token' };
-    const payload = await executor.buildWebPayload(input, messages, true, credentials);
-    if (payload.model === expected) {
-      console.log(`✅ ${input} → ${expected}`);
-    } else {
-      console.error(`❌ ${input} → ${payload.model} (expected ${expected})`);
-      process.exit(1);
-    }
+    const payload = await executor.buildWebPayload(input, messages, true, { apiKey: 'test' });
+    assert(payload.model === expected, `${input} → ${expected}`);
   }
 } catch (error) {
-  console.error('❌ Failed model mapping test:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 9: Inheritance check
-console.log('\nTest 9: Inheritance Check');
+// Test 10: Session management
+console.log('\nTest 10: Session Management');
 try {
   const executor = new DeepSeekWebExecutor();
-  if (typeof executor.execute === 'function') {
-    console.log('✅ Has execute() method');
-  }
-  if (typeof executor.buildUrl === 'function') {
-    console.log('✅ Has buildUrl() method');
-  }
-  if (typeof executor.buildWebHeaders === 'function') {
-    console.log('✅ Has buildWebHeaders() method');
-  }
-  if (typeof executor.buildWebPayload === 'function') {
-    console.log('✅ Has buildWebPayload() method');
-  }
-  if (typeof executor.buildPrompt === 'function') {
-    console.log('✅ Has buildPrompt() method');
-  }
-  if (typeof executor.getOrCreateSession === 'function') {
-    console.log('✅ Has getOrCreateSession() method');
-  }
-  if (typeof executor.getParentMessageId === 'function') {
-    console.log('✅ Has getParentMessageId() method');
-  }
-  if (typeof executor.updateParentMessageId === 'function') {
-    console.log('✅ Has updateParentMessageId() method');
-  }
-  if (typeof executor.clearSession === 'function') {
-    console.log('✅ Has clearSession() method');
-  }
-  if (typeof executor.parseWebStream === 'function') {
-    console.log('✅ Has parseWebStream() method');
-  }
-  if (typeof executor.sseChunk === 'function') {
-    console.log('✅ Has sseChunk() method');
-  }
+  const credentials = { apiKey: 'test-token' };
+  
+  assert(executor.getParentMessageId(credentials) === null, 'Initial parent ID is null');
+  
+  executor.updateParentMessageId(credentials, 'msg-123');
+  assert(executor.getParentMessageId(credentials) === 'msg-123', 'Parent ID updated');
+  
+  executor.clearSession(credentials);
+  assert(executor.getParentMessageId(credentials) === null, 'Session cleared');
 } catch (error) {
-  console.error('❌ Failed inheritance check:', error.message);
-  process.exit(1);
-}
-
-// Test 10: Error response
-console.log('\nTest 10: Error Response');
-try {
-  const executor = new DeepSeekWebExecutor();
-  const errorResp = executor.errorResponse('Test error', 400);
-  console.log(`✅ Error response created`);
-  if (errorResp.response.status === 400) {
-    console.log('✅ Status code correct');
-  }
-  const body = await errorResp.response.json();
-  if (body.error.message === 'Test error') {
-    console.log('✅ Error message correct');
-  }
-  if (body.error.code === 'DEEPSEEK-WEB_ERROR') {
-    console.log('✅ Error code correct');
-  }
-} catch (error) {
-  console.error('❌ Failed error response test:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
 // Test 11: SSE chunk helper
-console.log('\nTest 11: SSE Chunk Helper');
+console.log('\nTest 11: SSE Chunk');
 try {
   const executor = new DeepSeekWebExecutor();
   const chunk = executor.sseChunk({ id: 'test', content: 'hello' });
-  console.log(`✅ SSE chunk created: ${chunk.trim()}`);
-  if (chunk.startsWith('data: ')) {
-    console.log('✅ Starts with data: prefix');
-  }
-  if (chunk.endsWith('\n\n')) {
-    console.log('✅ Ends with double newline');
-  }
+  assert(chunk.startsWith('data: '), 'Starts with data:');
+  assert(chunk.endsWith('\n\n'), 'Ends with newline');
   const parsed = JSON.parse(chunk.slice(6));
-  if (parsed.id === 'test' && parsed.content === 'hello') {
-    console.log('✅ JSON content correct');
-  }
+  assert(parsed.id === 'test', 'JSON content correct');
 } catch (error) {
-  console.error('❌ Failed SSE chunk test:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 12: Session management
-console.log('\nTest 12: Session Management');
+// Test 12: Error response
+console.log('\nTest 12: Error Response');
 try {
   const executor = new DeepSeekWebExecutor();
-  const credentials = { apiKey: 'test-token' };
-  
-  // Test getParentMessageId
-  const parentId = executor.getParentMessageId(credentials);
-  console.log(`✅ Initial parent message ID: ${parentId}`);
-  if (parentId === null) {
-    console.log('✅ Default parent message ID correct');
-  }
-  
-  // Test updateParentMessageId
-  executor.updateParentMessageId(credentials, 'new-message-id');
-  const newParentId = executor.getParentMessageId(credentials);
-  console.log(`✅ Updated parent message ID: ${newParentId}`);
-  if (newParentId === 'new-message-id') {
-    console.log('✅ Parent message ID updated correctly');
-  }
-  
-  // Test clearSession
-  executor.clearSession(credentials);
-  const clearedParentId = executor.getParentMessageId(credentials);
-  console.log(`✅ After clear, parent message ID: ${clearedParentId}`);
-  if (clearedParentId === null) {
-    console.log('✅ Session cleared correctly');
-  }
+  const resp = executor.errorResponse('Test error', 400);
+  assert(resp.response.status === 400, 'Status code');
+  const body = await resp.response.json();
+  assert(body.error.message === 'Test error', 'Error message');
+  assert(body.error.code === 'DEEPSEEK-WEB_ERROR', 'Error code');
 } catch (error) {
-  console.error('❌ Failed session management test:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 13: URL builders
-console.log('\nTest 13: URL Builders');
+// Test 13: Handle web error messages
+console.log('\nTest 13: Error Messages');
 try {
   const executor = new DeepSeekWebExecutor();
+  const errors = [
+    { status: 401, expected: 'session expired' },
+    { status: 403, expected: 'session expired' },
+    { status: 429, expected: 'rate limited' },
+    { status: 404, expected: 'not found' },
+    { status: 400, expected: 'bad request' },
+    { status: 500, expected: 'server error' },
+  ];
   
-  const chatUrl = executor.getChatSessionUrl();
-  console.log(`✅ Chat session URL: ${chatUrl}`);
-  if (chatUrl.includes('/api/v0/chat_session/create')) {
-    console.log('✅ Chat session URL correct');
-  }
-  
-  const deleteUrl = executor.getDeleteSessionUrl();
-  console.log(`✅ Delete session URL: ${deleteUrl}`);
-  if (deleteUrl.includes('/api/v0/chat_session/delete')) {
-    console.log('✅ Delete session URL correct');
-  }
-  
-  const historyUrl = executor.getHistoryUrl();
-  console.log(`✅ History URL: ${historyUrl}`);
-  if (historyUrl.includes('/api/v0/chat/history_messages')) {
-    console.log('✅ History URL correct');
-  }
-  
-  const fileUrl = executor.getFileUploadUrl();
-  console.log(`✅ File upload URL: ${fileUrl}`);
-  if (fileUrl.includes('/api/v0/file/upload_file')) {
-    console.log('✅ File upload URL correct');
-  }
-  
-  const fileStatusUrl = executor.getFileStatusUrl('file-123,file-456');
-  console.log(`✅ File status URL: ${fileStatusUrl}`);
-  if (fileStatusUrl.includes('/api/v0/file/fetch_files?file_ids=file-123,file-456')) {
-    console.log('✅ File status URL correct');
-  }
-  
-  const settingsUrl = executor.getSettingsUrl();
-  console.log(`✅ Settings URL: ${settingsUrl}`);
-  if (settingsUrl.includes('/api/v0/client/settings?scope=model')) {
-    console.log('✅ Settings URL correct');
-  }
-  
-  const powUrl = executor.getPowChallengeUrl();
-  console.log(`✅ PoW challenge URL: ${powUrl}`);
-  if (powUrl.includes('/api/v0/chat/create_pow_challenge')) {
-    console.log('✅ PoW challenge URL correct');
+  for (const { status, expected } of errors) {
+    const resp = executor.handleWebError({ status }, status, null);
+    const body = await resp.response.json();
+    assert(body.error.message.toLowerCase().includes(expected), `${status} error message`);
   }
 } catch (error) {
-  console.error('❌ Failed URL builders test:', error.message);
+  console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-console.log('\n✅ All tests passed!\n');
+// Test 14: Provider registry
+console.log('\nTest 14: Provider Registry');
+try {
+  const registry = (await import('./open-sse/providers/registry/deepseek-web.js')).default;
+  assert(registry.id === 'deepseek-web', 'Provider ID');
+  assert(registry.category === 'webCookie', 'Category');
+  assert(registry.authType === 'cookie', 'Auth type');
+  assert(registry.models.length >= 12, 'Has all models');
+  
+  const modelIds = registry.models.map(m => m.id);
+  assert(modelIds.includes('deepseek-default'), 'Has deepseek-default');
+  assert(modelIds.includes('deepseek-reasoner'), 'Has deepseek-reasoner');
+  assert(modelIds.includes('deepseek-expert'), 'Has deepseek-expert');
+  assert(modelIds.includes('deepseek-vision'), 'Has deepseek-vision');
+} catch (error) {
+  console.error('❌ Failed:', error.message);
+  process.exit(1);
+}
+
+// Summary
+console.log('\n' + '='.repeat(40));
+console.log(`Results: ${passed} passed, ${failed} failed`);
+console.log('='.repeat(40));
+
+if (failed > 0) {
+  process.exit(1);
+} else {
+  console.log('\n✅ All tests passed!\n');
+}

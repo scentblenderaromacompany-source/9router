@@ -6,14 +6,25 @@ const DEEPSEEK_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) App
 const DEEPSEEK_CLIENT_VERSION = "2.0.2";
 
 const MODEL_MAP = {
-  "deepseek-web-chat": { mode: "chat", name: "DeepSeek Chat" },
-  "deepseek-web-reasoner": { mode: "reasoner", name: "DeepSeek Reasoner" },
+  // DeepSeek V4 Flash models
   "deepseek-default": { mode: "default", name: "DeepSeek V4 Flash" },
   "deepseek-reasoner": { mode: "reasoner", name: "DeepSeek V4 Flash Reasoning" },
+  "deepseek-search": { mode: "search", name: "DeepSeek V4 Flash Search" },
+  "deepseek-reasoner-search": { mode: "reasoner-search", name: "DeepSeek V4 Flash Reasoning+Search" },
+  
+  // DeepSeek V4 Pro models
   "deepseek-expert": { mode: "expert", name: "DeepSeek V4 Pro" },
   "deepseek-expert-reasoner": { mode: "expert-reasoner", name: "DeepSeek V4 Pro Reasoning" },
+  "deepseek-expert-search": { mode: "expert-search", name: "DeepSeek V4 Pro Search" },
+  "deepseek-expert-reasoner-search": { mode: "expert-reasoner-search", name: "DeepSeek V4 Pro Reasoning+Search" },
+  
+  // DeepSeek Vision models
   "deepseek-vision": { mode: "vision", name: "DeepSeek Vision" },
   "deepseek-vision-reasoner": { mode: "vision-reasoner", name: "DeepSeek Vision Reasoning" },
+  
+  // Legacy aliases
+  "deepseek-web-chat": { mode: "default", name: "DeepSeek Chat (Legacy)" },
+  "deepseek-web-reasoner": { mode: "reasoner", name: "DeepSeek Reasoner (Legacy)" },
 };
 
 /**
