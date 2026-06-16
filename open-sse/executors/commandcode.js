@@ -32,8 +32,9 @@ export class CommandCodeExecutor extends BaseExecutor {
       "x-session-id": randomUUID(),
     };
 
-    const token = credentials?.apiKey || credentials?.accessToken;
+    const token = credentials?.apiKey || credentials?.sessionToken || credentials?.accessToken || credentials?.token;
     if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (credentials?.cookie) headers["Cookie"] = credentials.cookie;
 
     if (stream) headers["Accept"] = "text/event-stream";
     return headers;

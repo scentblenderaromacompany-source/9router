@@ -104,10 +104,11 @@ export class ZAIExecutor extends BaseExecutor {
     };
 
     // Use API key for Z.AI access
-    const token = credentials?.apiKey || credentials?.accessToken;
+    const token = credentials?.apiKey || credentials?.sessionToken || credentials?.accessToken || credentials?.token;
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+    if (credentials?.cookie) headers["Cookie"] = credentials.cookie;
 
     if (stream) {
       headers["Accept"] = "text/event-stream";

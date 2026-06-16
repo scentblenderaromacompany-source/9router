@@ -30,12 +30,15 @@ export class AzureExecutor extends DefaultExecutor {
     };
 
     const apiKey = credentials?.apiKey
+      || credentials?.sessionToken
       || credentials?.accessToken
+      || credentials?.token
       || process.env.OPENAI_API_KEY;
 
     if (apiKey) {
       headers["api-key"] = apiKey;
     }
+    if (credentials?.cookie) headers["Cookie"] = credentials.cookie;
 
     const organization = credentials?.providerSpecificData?.organization
       || process.env.AZURE_ORGANIZATION;

@@ -45,7 +45,7 @@ function sanitizeQwenThinkingToolChoice(body) {
 }
 
 function buildQwenUpstreamHeaders(credentials, stream = true) {
-  const token = credentials?.apiKey || credentials?.accessToken || "";
+  const token = credentials?.apiKey || credentials?.sessionToken || credentials?.accessToken || credentials?.token || "";
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,

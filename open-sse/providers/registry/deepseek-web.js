@@ -2,6 +2,26 @@
  * DeepSeek Web UI provider — native integration with chat.deepseek.com
  * Uses user token from browser to access DeepSeek models directly
  * Supports streaming, deep thinking, web search, vision, and tool use
+ * 
+ * Available Endpoints:
+ * - POST /api/v0/chat/completion          - Send chat message (SSE streaming)
+ * - POST /api/v0/chat_session/create      - Create new session
+ * - POST /api/v0/chat_session/delete      - Delete session
+ * - GET  /api/v0/chat/history_messages    - Get chat history
+ * - POST /api/v0/chat/create_pow_challenge - Create PoW challenge
+ * - POST /api/v0/file/upload_file         - Upload file
+ * - GET  /api/v0/file/fetch_files         - Query file status
+ * - POST /api/v0/file/fork_file_task      - Fork file task
+ * - GET  /api/v0/client/settings          - Get model settings
+ * - GET  /api/v0/users/me                 - Get current user info
+ * - GET  /api/v0/users/settings           - Get user settings
+ * - PUT  /api/v0/users/settings           - Update user settings
+ * - GET  /api/v0/shared/conversations     - List shared conversations
+ * - GET  /api/v0/shared/conversations/:id - Get shared conversation
+ * - POST /api/v0/shared/conversations     - Share conversation
+ * - GET  /api/v0/characters               - List characters
+ * - GET  /api/v0/characters/:id           - Get character
+ * - POST /api/v0/characters               - Create character
  */
 export default {
   id: "deepseek-web",

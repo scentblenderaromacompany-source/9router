@@ -22,7 +22,7 @@ export class OpenCodeGoExecutor extends BaseExecutor {
   }
 
   buildHeaders(credentials, stream = true) {
-    const key = credentials?.apiKey || credentials?.accessToken;
+    const key = credentials?.apiKey || credentials?.sessionToken || credentials?.accessToken || credentials?.token;
     const headers = { "Content-Type": "application/json" };
 
     if (CLAUDE_FORMAT_MODELS.has(this._lastModel)) {
@@ -31,6 +31,7 @@ export class OpenCodeGoExecutor extends BaseExecutor {
     } else {
       headers["Authorization"] = `Bearer ${key}`;
     }
+    if (credentials?.cookie) headers["Cookie"] = credentials.cookie;
 
     if (stream) headers["Accept"] = "text/event-stream";
     return headers;
