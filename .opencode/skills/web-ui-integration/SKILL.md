@@ -250,12 +250,16 @@ DeepSeek requires a `USER_TOKEN` from browser local storage:
 
 ### API Endpoints
 
-```
-POST /api/v0/chat/completion          # Send message (SSE streaming)
-POST /api/v0/chat_session/create      # Create new session
-POST /api/v0/chat_session/delete      # Delete session
-GET  /api/v0/chat/history_messages    # Get chat history
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v0/chat/completion` | POST | Send chat message (SSE streaming) |
+| `/api/v0/chat_session/create` | POST | Create new session |
+| `/api/v0/chat_session/delete` | POST | Delete session |
+| `/api/v0/chat/history_messages` | GET | Get chat history |
+| `/api/v0/file/upload_file` | POST | Upload file |
+| `/api/v0/file/fetch_files` | GET | Query file status |
+| `/api/v0/client/settings` | GET | Get model settings |
+| `/api/v0/chat/create_pow_challenge` | POST | Create PoW challenge |
 
 ### Request Format
 
@@ -263,34 +267,80 @@ GET  /api/v0/chat/history_messages    # Get chat history
 {
   "prompt": "Hello, how are you?",
   "chat_session_id": "session-id",
-  "model": "chat",
-  "stream": true
+  "parent_message_id": null,
+  "model": "default",
+  "stream": true,
+  "search_enabled": false,
+  "thinking_enabled": false,
+  "ref_file_ids": []
 }
+```
+
+### Response Format (SSE)
+
+```json
+data: {"choices": [{"delta": {"content": "Hello"}, "finish_reason": null}]}
+data: {"choices": [{"delta": {"content": "!"}, "finish_reason": null}]}
+data: {"choices": [{"delta": {}, "finish_reason": "stop"}]}
+data: [DONE]
 ```
 
 ### Available Models
 
-| Model ID | Name |
-|----------|------|
-| `deepseek-web-chat` | DeepSeek Chat (Web) |
-| `deepseek-web-reasoner` | DeepSeek Reasoner (Web) |
+| Model ID | Name | Reasoning | Search | Vision |
+|----------|------|:---------:|:------:|:------:|
+| `deepseek-default` | DeepSeek V4 Flash | ✗ | ✗ | ✗ |
+| `deepseek-reasoner` | DeepSeek V4 Flash Reasoning | ✓ | ✗ | ✗ |
+| `deepseek-search` | DeepSeek V4 Flash Search | ✗ | ✓ | ✗ |
+| `deepseek-reasoner-search` | DeepSeek V4 Flash Reasoning+Search | ✓ | ✓ | ✗ |
+| `deepseek-expert` | DeepSeek V4 Pro | ✗ | ✗ | ✗ |
+| `deepseek-expert-reasoner` | DeepSeek V4 Pro Reasoning | ✓ | ✗ | ✗ |
+| `deepseek-expert-search` | DeepSeek V4 Pro Search | ✗ | ✓ | ✗ |
+| `deepseek-expert-reasoner-search` | DeepSeek V4 Pro Reasoning+Search | ✓ | ✓ | ✗ |
+| `deepseek-vision` | DeepSeek Vision | ✗ | ✗ | ✓ |
+| `deepseek-vision-reasoner` | DeepSeek Vision Reasoning | ✓ | ✗ | ✓ |
 
 ### Usage Example
 
 ```javascript
-// Provider config
+// Basic chat
 {
   "provider": "deepseek-web",
-  "model": "deepseek-web-chat",
+  "model": "deepseek-default",
+  "apiKey": "<your-deepseek-user-token>"
+}
+
+// Reasoning mode
+{
+  "provider": "deepseek-web",
+  "model": "deepseek-reasoner",
+  "apiKey": "<your-deepseek-user-token>"
+}
+
+// Expert (V4 Pro) with reasoning
+{
+  "provider": "deepseek-web",
+  "model": "deepseek-expert-reasoner",
   "apiKey": "<your-deepseek-user-token>"
 }
 ```
 
+### Features
+
+- **Session Management** — Automatic session creation and caching
+- **Multi-turn Conversations** — Parent message ID tracking
+- **Proof of Work (PoW)** — Automatic challenge solving
+- **Deep Thinking** — Reasoning content in `reasoning_content` field
+- **Web Search** — Real-time search results
+- **File Upload** — Text and image file support
+- **Tool Calling** — Via DSML prompt injection
+
 ### Notes
 
-- DeepSeek requires Proof of Work (PoW) for some endpoints
+- Token expires in ~24 hours; re-login required
+- PoW solving requires Node.js for WASM solver
+- Concurrent requests limited to ~2 per account
 - Sessions are cached and reused for multi-turn conversations
-- Reasoner mode enables chain-of-thought thinking
 
 ## Browser Automation (puppeteer-extra-stealth)
 

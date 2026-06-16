@@ -1,7 +1,7 @@
 /**
  * DeepSeek Web UI provider — native integration with chat.deepseek.com
  * Uses user token from browser to access DeepSeek models directly
- * Supports streaming, deep thinking, and tool use
+ * Supports streaming, deep thinking, web search, vision, and tool use
  */
 export default {
   id: "deepseek-web",
@@ -31,8 +31,25 @@ export default {
     format: "openai",
   },
   models: [
-    { id: "deepseek-web-chat", name: "DeepSeek Chat (Web)", capabilities: ["text", "vision", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-web-reasoner", name: "DeepSeek Reasoner (Web)", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    // DeepSeek V4 Flash models
+    { id: "deepseek-default", name: "DeepSeek V4 Flash", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-reasoner", name: "DeepSeek V4 Flash Reasoning", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-search", name: "DeepSeek V4 Flash Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-reasoner-search", name: "DeepSeek V4 Flash Reasoning+Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    
+    // DeepSeek V4 Pro models
+    { id: "deepseek-expert", name: "DeepSeek V4 Pro", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-expert-reasoner", name: "DeepSeek V4 Pro Reasoning", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-expert-search", name: "DeepSeek V4 Pro Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-expert-reasoner-search", name: "DeepSeek V4 Pro Reasoning+Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    
+    // DeepSeek Vision models
+    { id: "deepseek-vision", name: "DeepSeek Vision", capabilities: ["text", "vision", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-vision-reasoner", name: "DeepSeek Vision Reasoning", capabilities: ["text", "vision", "tools"], params: ["temperature", "max_tokens"] },
+    
+    // Legacy aliases
+    { id: "deepseek-web-chat", name: "DeepSeek Chat (Legacy)", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-web-reasoner", name: "DeepSeek Reasoner (Legacy)", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
   ],
   passthroughModels: true,
   serviceKinds: ["llm"],

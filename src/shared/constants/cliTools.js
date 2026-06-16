@@ -723,14 +723,14 @@ amp --model "{{model}}"
       {
         step: 4,
         title: "Select Model",
-        desc: "Choose from deepseek-web-chat or deepseek-web-reasoner.",
+        desc: "Choose from deepseek-default, deepseek-reasoner, deepseek-expert, or deepseek-vision.",
       },
     ],
     codeBlock: {
       language: "json",
       code: `{
   "provider": "deepseek-web",
-  "model": "deepseek-web-chat",
+  "model": "deepseek-default",
   "apiKey": "<your-deepseek-user-token>"
 }`,
     },
