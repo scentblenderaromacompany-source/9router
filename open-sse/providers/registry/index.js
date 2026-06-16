@@ -40,6 +40,7 @@ import p37 from "./glm-cn.js";
 import p38 from "./google-pse.js";
 import p39 from "./google-tts.js";
 import p40 from "./grok-web.js";
+import p40a from "./chatgpt-web.js";
 import p41 from "./groq.js";
 import p42 from "./huggingface.js";
 import p43 from "./hyperbolic.js";
@@ -136,6 +137,7 @@ export default [
   p38,
   p39,
   p40,
+  p40a,
   p41,
   p42,
   p43,
