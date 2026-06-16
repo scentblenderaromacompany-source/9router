@@ -188,8 +188,20 @@ try {
   if (typeof executor.getOrCreateSession === 'function') {
     console.log('✅ Has getOrCreateSession() method');
   }
+  if (typeof executor.getParentMessageId === 'function') {
+    console.log('✅ Has getParentMessageId() method');
+  }
+  if (typeof executor.updateParentMessageId === 'function') {
+    console.log('✅ Has updateParentMessageId() method');
+  }
+  if (typeof executor.clearSession === 'function') {
+    console.log('✅ Has clearSession() method');
+  }
   if (typeof executor.parseWebStream === 'function') {
     console.log('✅ Has parseWebStream() method');
+  }
+  if (typeof executor.sseChunk === 'function') {
+    console.log('✅ Has sseChunk() method');
   }
 } catch (error) {
   console.error('❌ Failed inheritance check:', error.message);
@@ -214,6 +226,60 @@ try {
   }
 } catch (error) {
   console.error('❌ Failed error response test:', error.message);
+  process.exit(1);
+}
+
+// Test 11: SSE chunk helper
+console.log('\nTest 11: SSE Chunk Helper');
+try {
+  const executor = new DeepSeekWebExecutor();
+  const chunk = executor.sseChunk({ id: 'test', content: 'hello' });
+  console.log(`✅ SSE chunk created: ${chunk.trim()}`);
+  if (chunk.startsWith('data: ')) {
+    console.log('✅ Starts with data: prefix');
+  }
+  if (chunk.endsWith('\n\n')) {
+    console.log('✅ Ends with double newline');
+  }
+  const parsed = JSON.parse(chunk.slice(6));
+  if (parsed.id === 'test' && parsed.content === 'hello') {
+    console.log('✅ JSON content correct');
+  }
+} catch (error) {
+  console.error('❌ Failed SSE chunk test:', error.message);
+  process.exit(1);
+}
+
+// Test 12: Session management
+console.log('\nTest 12: Session Management');
+try {
+  const executor = new DeepSeekWebExecutor();
+  const credentials = { apiKey: 'test-token' };
+  
+  // Test getParentMessageId
+  const parentId = executor.getParentMessageId(credentials);
+  console.log(`✅ Initial parent message ID: ${parentId}`);
+  if (parentId === 'client-created-root') {
+    console.log('✅ Default parent message ID correct');
+  }
+  
+  // Test updateParentMessageId
+  executor.updateParentMessageId(credentials, 'new-message-id');
+  const newParentId = executor.getParentMessageId(credentials);
+  console.log(`✅ Updated parent message ID: ${newParentId}`);
+  if (newParentId === 'new-message-id') {
+    console.log('✅ Parent message ID updated correctly');
+  }
+  
+  // Test clearSession
+  executor.clearSession(credentials);
+  const clearedParentId = executor.getParentMessageId(credentials);
+  console.log(`✅ After clear, parent message ID: ${clearedParentId}`);
+  if (clearedParentId === 'client-created-root') {
+    console.log('✅ Session cleared correctly');
+  }
+} catch (error) {
+  console.error('❌ Failed session management test:', error.message);
   process.exit(1);
 }
 
