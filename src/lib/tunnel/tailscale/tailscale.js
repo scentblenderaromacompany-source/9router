@@ -737,6 +737,73 @@ export function startLogin(hostname) {
   });
 }
 
+/**
+ * Run `tailscale up --authkey=<key>` for headless/scripted login.
+ * No browser interaction required. Resolves with { success: true } or rejects.
+ */
+export async function startLoginWithAuthKey(authKey, hostname) {
+  const bin = getTailscaleBin();
+  if (!bin) throw new Error("Tailscale not installed");
+  if (!authKey || typeof authKey !== "string") throw new Error("Auth key is required");
+
+  ensureDaemon();
+  await new Promise((r) => setTimeout(r, 2000));
+
+  if (isTailscaleLoggedIn()) {
+    return { alreadyLoggedIn: true };
+  }
+
+  return new Promise((resolve, reject) => {
+    const args = tsArgs("up", "--authkey", authKey, "--accept-routes");
+    if (hostname) args.push(`--hostname=${hostname}`);
+
+    const child = spawn(bin, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
+      windowsHide: true
+    });
+
+    let resolved = false;
+    let output = "";
+
+    const timeout = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      child.kill();
+      if (isTailscaleLoggedIn()) {
+        resolve({ success: true });
+      } else {
+        reject(new Error(`tailscale up --authkey timed out: ${output.trim().slice(0, 200)}`));
+      }
+    }, 30000);
+
+    child.stdout.on("data", (d) => { output += d.toString(); });
+    child.stderr.on("data", (d) => { output += d.toString(); });
+
+    child.on("error", (err) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeout);
+      reject(err);
+    });
+
+    child.on("exit", (code) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeout);
+      child.unref();
+      console.log(`[Tailscale] authkey login exit code=${code}`);
+      if (isTailscaleLoggedIn()) {
+        resolve({ success: true });
+      } else if (output.includes("invalid") || output.includes("expired") || output.includes("unauthorized")) {
+        reject(new Error("Auth key is invalid or expired"));
+      } else {
+        reject(new Error(`tailscale up --authkey failed (code ${code}): ${output.trim().slice(0, 200)}`));
+      }
+    });
+  });
+}
+
 /** Start tailscale funnel for the given port */
 export async function startFunnel(port) {
   const bin = getTailscaleBin();

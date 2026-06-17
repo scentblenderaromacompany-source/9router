@@ -65,6 +65,9 @@ export default function APIPageClient({ machineId }) {
   const [tsConnecting, setTsConnecting] = useState(false);
   const [showTsModal, setShowTsModal] = useState(false);
   const [showDisableTsModal, setShowDisableTsModal] = useState(false);
+  const [tsAuthKey, setTsAuthKey] = useState("");
+  const [tsHasSavedAuthKey, setTsHasSavedAuthKey] = useState(false);
+  const [tsAuthKeySaving, setTsAuthKeySaving] = useState(false);
   const tsLogRef = useRef(null);
 
   // Debounce reachable=false: server may briefly return false during background refresh.
@@ -456,6 +459,7 @@ export default function APIPageClient({ machineId }) {
       if (res.ok) {
         const data = await res.json();
         setTsInstalled(data.installed);
+        setTsHasSavedAuthKey(data.hasSavedAuthKey || false);
         return data;
       }
     } catch { /* ignore */ }
@@ -551,7 +555,13 @@ export default function APIPageClient({ machineId }) {
     setTsProgress("Connecting...");
     clearUserAuth();
     try {
-      const res = await fetch("/api/tunnel/tailscale-enable", { method: "POST" });
+      const body = {};
+      if (tsAuthKey.trim()) body.authKey = tsAuthKey.trim();
+      const res = await fetch("/api/tunnel/tailscale-enable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: Object.keys(body).length ? JSON.stringify(body) : undefined,
+      });
       const data = await res.json();
 
       if (res.ok && data.success) {
@@ -659,6 +669,40 @@ export default function APIPageClient({ machineId }) {
     } finally {
       setTsLoading(false);
     }
+  };
+
+  const handleSaveAuthKey = async () => {
+    if (!tsAuthKey.trim()) return;
+    setTsAuthKeySaving(true);
+    try {
+      const res = await fetch("/api/tunnel/tailscale-authkey", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authKey: tsAuthKey.trim() }),
+      });
+      if (res.ok) {
+        setTsHasSavedAuthKey(true);
+        setTsAuthKey("");
+        setTsStatus({ type: "success", message: "Auth key saved" });
+      } else {
+        const data = await res.json();
+        setTsStatus({ type: "error", message: data.error || "Failed to save auth key" });
+      }
+    } catch (e) {
+      setTsStatus({ type: "error", message: e.message });
+    } finally {
+      setTsAuthKeySaving(false);
+    }
+  };
+
+  const handleDeleteAuthKey = async () => {
+    try {
+      const res = await fetch("/api/tunnel/tailscale-authkey", { method: "DELETE" });
+      if (res.ok) {
+        setTsHasSavedAuthKey(false);
+        setTsStatus({ type: "success", message: "Auth key removed" });
+      }
+    } catch { /* ignore */ }
   };
 
   const handleOpenTsModal = async () => {
@@ -1387,12 +1431,41 @@ export default function APIPageClient({ machineId }) {
                 <span className="material-symbols-outlined text-[16px]">check_circle</span>
                 Tailscale installed
               </div>
+
+              {/* Auth Key Section */}
+              <div className="bg-black/5 dark:bg-white/5 rounded-lg p-3 flex flex-col gap-2">
+                <p className="text-xs text-text-muted">Auth Key (optional, for headless login)</p>
+                {tsHasSavedAuthKey && (
+                  <p className="text-xs text-green-600 dark:text-green-400">Saved auth key will be used automatically</p>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary font-mono"
+                    placeholder="tskey-auth-..."
+                    value={tsAuthKey}
+                    onChange={(e) => setTsAuthKey(e.target.value)}
+                  />
+                  {tsAuthKey.trim() && (
+                    <Button size="sm" onClick={handleSaveAuthKey} disabled={tsAuthKeySaving}>
+                      {tsAuthKeySaving ? "Saving..." : "Save"}
+                    </Button>
+                  )}
+                  {tsHasSavedAuthKey && !tsAuthKey.trim() && (
+                    <Button size="sm" variant="danger" onClick={handleDeleteAuthKey}>Remove</Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-text-muted">
+                  Generate at <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noopener noreferrer" className="text-primary underline">Tailscale Admin → Keys</a>
+                </p>
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   onClick={() => handleConnectTailscale()}
                   fullWidth
                 >
-                  Connect
+                  {tsHasSavedAuthKey ? "Connect with Saved Key" : "Connect"}
                 </Button>
                 <Button onClick={() => setShowTsModal(false)} variant="ghost" fullWidth>Cancel</Button>
               </div>

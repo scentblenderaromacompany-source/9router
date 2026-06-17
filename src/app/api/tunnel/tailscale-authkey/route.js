@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { enableTailscale } from "@/lib/tunnel";
 import { getSettings, updateSettings } from "@/lib/localDb";
 
 const ENCRYPT_ALGO = "aes-256-gcm";
@@ -40,25 +39,35 @@ function decryptAuthKey(stored) {
   }
 }
 
+export async function GET() {
+  try {
+    const settings = await getSettings();
+    const hasKey = !!settings.tailscaleAuthKeyEncrypted;
+    return NextResponse.json({ hasKey });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function POST(request) {
   try {
-    let authKey = null;
-    try {
-      const body = await request.json();
-      authKey = body?.authKey || null;
-    } catch { /* GET-style call, no body */ }
-
-    if (!authKey) {
-      const settings = await getSettings();
-      if (settings.tailscaleAuthKeyEncrypted) {
-        authKey = decryptAuthKey(settings.tailscaleAuthKeyEncrypted);
-      }
+    const { authKey } = await request.json();
+    if (!authKey || typeof authKey !== "string" || !authKey.trim()) {
+      return NextResponse.json({ error: "Auth key is required" }, { status: 400 });
     }
-
-    const result = await enableTailscale(20128, authKey);
-    return NextResponse.json(result);
+    const encrypted = encryptAuthKey(authKey.trim());
+    await updateSettings({ tailscaleAuthKeyEncrypted: encrypted });
+    return NextResponse.json({ success: true, hasKey: true });
   } catch (error) {
-    console.error("Tailscale enable error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    await updateSettings({ tailscaleAuthKeyEncrypted: "" });
+    return NextResponse.json({ success: true, hasKey: false });
+  } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

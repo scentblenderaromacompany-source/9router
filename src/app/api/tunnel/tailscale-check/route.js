@@ -4,6 +4,7 @@ import { promisify } from "util";
 import { NextResponse } from "next/server";
 import { isTailscaleInstalled, isTailscaleLoggedIn, isSystemDaemonRunning, getTailscaleBin, TAILSCALE_SOCKET } from "@/lib/tunnel";
 import { getCachedPassword, loadEncryptedPassword } from "@/mitm/manager";
+import { getSettings } from "@/lib/localDb";
 
 const execAsync = promisify(exec);
 const EXTENDED_PATH = `/usr/local/bin:/opt/homebrew/bin:/usr/sbin:/usr/bin:/bin:/snap/bin:${process.env.PATH || ""}`;
@@ -38,7 +39,6 @@ export async function GET() {
   try {
     const installed = isTailscaleInstalled();
     const platform = os.platform();
-    // Run independent probes in parallel — none blocks the event loop
     const [brewAvailable, customDaemonRunning, systemDaemonRunning] = await Promise.all([
       platform === "darwin" ? hasBrew() : Promise.resolve(false),
       installed ? isCustomDaemonRunning() : Promise.resolve(false),
@@ -47,7 +47,9 @@ export async function GET() {
     const daemonRunning = customDaemonRunning || systemDaemonRunning;
     const loggedIn = daemonRunning ? isTailscaleLoggedIn() : false;
     const hasCachedPassword = !!(getCachedPassword() || await loadEncryptedPassword());
-    return NextResponse.json({ installed, loggedIn, platform, brewAvailable, daemonRunning, customDaemonRunning, systemDaemonRunning, hasCachedPassword });
+    const settings = await getSettings();
+    const hasSavedAuthKey = !!settings.tailscaleAuthKeyEncrypted;
+    return NextResponse.json({ installed, loggedIn, platform, brewAvailable, daemonRunning, customDaemonRunning, systemDaemonRunning, hasCachedPassword, hasSavedAuthKey });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

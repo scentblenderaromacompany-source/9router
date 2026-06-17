@@ -36,6 +36,7 @@ export {
   getTailscaleBin,
   installTailscale,
   startLogin,
+  startLoginWithAuthKey,
   startDaemonWithPassword,
   TAILSCALE_SOCKET,
 } from "./tailscale/tailscale.js";
