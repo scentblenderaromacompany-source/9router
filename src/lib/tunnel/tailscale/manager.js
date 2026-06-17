@@ -1,5 +1,5 @@
 import { loadState, generateShortId } from "../shared/state.js";
-import { startFunnel, stopFunnel, isTailscaleRunning, isTailscaleRunningStrict, isTailscaleLoggedIn, isTailscaleLoggedInStrict, startLogin, startDaemonWithPassword, provisionCert } from "./tailscale.js";
+import { startFunnel, stopFunnel, isTailscaleRunning, isTailscaleRunningStrict, isTailscaleLoggedIn, isTailscaleLoggedInStrict, startLogin, startLoginWithAuthKey, startDaemonWithPassword, provisionCert } from "./tailscale.js";
 import { waitForHealth } from "./healthCheck.js";
 import { getSettings, updateSettings } from "@/lib/localDb";
 import { getCachedPassword, loadEncryptedPassword, initDbHooks } from "@/mitm/manager";
@@ -20,14 +20,34 @@ function throwIfCancelled(token) {
   if (token.cancelled) throw new Error("tailscale cancelled");
 }
 
-export async function enableTailscale(localPort = 20128) {
-  console.log(`[Tailscale] enable start (port=${localPort})`);
+export async function enableTailscale(localPort = 20128, authKey = null) {
+  console.log(`[Tailscale] enable start (port=${localPort}, authKey=${authKey ? "***" : "null"})`);
   svc.cancelToken = { cancelled: false };
   svc.activeLocalPort = localPort;
   svc.spawnInProgress = true;
   const token = svc.cancelToken;
 
   try {
+    // Auto-load saved auth key from settings if not provided
+    if (!authKey) {
+      try {
+        const settings = await getSettings();
+        if (settings.tailscaleAuthKeyEncrypted) {
+          const crypto = await import("crypto");
+          const [ivHex, tagHex, dataHex] = settings.tailscaleAuthKeyEncrypted.split(":");
+          if (ivHex && tagHex && dataHex) {
+            const { machineIdSync } = await import("node-machine-id");
+            const raw = machineIdSync();
+            const key = crypto.default.createHash("sha256").update(raw + "9router-tailscale-authkey").digest();
+            const decipher = crypto.default.createDecipheriv("aes-256-gcm", key, Buffer.from(ivHex, "hex"));
+            decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+            authKey = decipher.update(Buffer.from(dataHex, "hex")) + decipher.final("utf8");
+            console.log("[Tailscale] loaded saved auth key from settings");
+          }
+        }
+      } catch { /* ignore decrypt errors */ }
+    }
+
     const sudoPass = getCachedPassword() || await loadEncryptedPassword() || "";
     await startDaemonWithPassword(sudoPass);
     console.log("[Tailscale] daemon ready");
@@ -40,12 +60,20 @@ export async function enableTailscale(localPort = 20128) {
     const loggedIn = await isTailscaleLoggedInStrict();
     console.log(`[Tailscale] loggedIn=${loggedIn}`);
     if (!loggedIn) {
-      const loginResult = await startLogin(tsHostname);
-      if (loginResult.authUrl) {
-        console.log(`[Tailscale] needs login, authUrl=${loginResult.authUrl}`);
-        return { success: false, needsLogin: true, authUrl: loginResult.authUrl };
+      if (authKey) {
+        console.log("[Tailscale] logging in with auth key");
+        const authResult = await startLoginWithAuthKey(authKey, tsHostname);
+        if (authResult.alreadyLoggedIn) {
+          console.log("[Tailscale] already logged in via auth key");
+        }
+      } else {
+        const loginResult = await startLogin(tsHostname);
+        if (loginResult.authUrl) {
+          console.log(`[Tailscale] needs login, authUrl=${loginResult.authUrl}`);
+          return { success: false, needsLogin: true, authUrl: loginResult.authUrl };
+        }
+        console.log("[Tailscale] login resolved alreadyLoggedIn");
       }
-      console.log("[Tailscale] login resolved alreadyLoggedIn");
     }
     throwIfCancelled(token);
 
