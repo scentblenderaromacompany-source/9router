@@ -1,4 +1,5 @@
-import { RATE_LIMIT_CONFIG } from "@/shared/constants/config";
+import { MODEL_FETCHER_CONFIG } from "@/shared/constants/modelFetcherConfig";
+const { RATE_LIMIT_CONFIG } = MODEL_FETCHER_CONFIG;
 
 export class RateLimiter {
   constructor(maxRequests = RATE_LIMIT_CONFIG.MAX_REQUESTS_PER_MINUTE, providerId = null) {

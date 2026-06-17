@@ -146,7 +146,7 @@ export default function ModelAvailabilityBadge() {
                         const isClearing = clearing === `${m.provider}:${m.model}`;
                         return (
                           <div
-                            key={`${m.provider}-${m.model}`}
+                            key={`${m.provider}-${m.model}-${m.connectionId || 0}`}
                             className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-surface/30"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">

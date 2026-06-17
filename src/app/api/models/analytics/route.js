@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUsageStats, getChartData } from "@/lib/localDb";
+import { getUsageStats, getChartData } from "@/lib/usageDb";
 
 // GET /api/models/analytics - Get model usage analytics and reporting
 export async function GET(request) {
