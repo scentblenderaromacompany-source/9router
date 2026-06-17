@@ -110,7 +110,7 @@ function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMov
             <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
           </button>
         </div>
-        <span className="material-symbols-outlined text-base text-text-muted">{isOAuth ? "lock" : "key"}</span>
+        <span className="material-symbols-outlined text-base text-text-muted">{isOAuth ? "lock" : connection.authType === "cookie" ? "cookie" : "key"}</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{displayName}</p>
           <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -194,8 +194,13 @@ ConnectionRow.propTypes = {
 };
 
 // ── AddApiKeyModal ─────────────────────────────────────────────
-function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, onClose }) {
+function AddApiKeyModal({ isOpen, provider, providerName, authType, authHint, website, proxyPools, onSave, onClose }) {
   const NONE = "__none__";
+  const isCookie = authType === "cookie";
+  const credentialLabel = isCookie ? "Cookie Value" : "API Key";
+  const credentialPlaceholder = isCookie
+    ? (provider === "grok-web" ? "sso=xxxxx... or just the raw value" : "eyJhbGciOi...")
+    : "";
   const [formData, setFormData] = useState({ name: "", apiKey: "", priority: 1, proxyPoolId: NONE });
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
@@ -245,16 +250,16 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
   if (!provider) return null;
 
   return (
-    <Modal isOpen={isOpen} title={`Add ${providerName || provider} API Key`} onClose={onClose}>
+    <Modal isOpen={isOpen} title={`Add ${providerName || provider} ${credentialLabel}`} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div>
           <label className="text-xs text-text-muted mb-1 block">Name</label>
-          <input className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Production Key" />
+          <input className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={isCookie ? "My Session" : "Production Key"} />
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-text-muted mb-1 block">API Key</label>
-            <input type="password" className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary" value={formData.apiKey} onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })} />
+            <label className="text-xs text-text-muted mb-1 block">{credentialLabel}</label>
+            <input type={isCookie ? "text" : "password"} className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary" value={formData.apiKey} onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })} placeholder={credentialPlaceholder} />
           </div>
           <div className="pt-6">
             <Button onClick={handleValidate} disabled={!formData.apiKey || validating || saving} variant="secondary">
@@ -262,6 +267,19 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
             </Button>
           </div>
         </div>
+        {isCookie && authHint && (
+          <p className="text-xs text-text-muted">
+            {authHint}
+            {website && (
+              <>
+                {" "}
+                <a href={website} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                  Open {website.replace(/^https?:\/\//, "")}
+                </a>
+              </>
+            )}
+          </p>
+        )}
         {validationResult && (
           <Badge variant={validationResult === "success" ? "success" : "error"}>
             {validationResult === "success" ? "Valid" : "Invalid"}
@@ -288,6 +306,9 @@ AddApiKeyModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   provider: PropTypes.string,
   providerName: PropTypes.string,
+  authType: PropTypes.string,
+  authHint: PropTypes.string,
+  website: PropTypes.string,
   proxyPools: PropTypes.array,
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
@@ -295,7 +316,7 @@ AddApiKeyModal.propTypes = {
 
 // ── ConnectionsCard ────────────────────────────────────────────
 // Self-contained card: fetches, displays and manages all connections for a provider.
-export default function ConnectionsCard({ providerId, isOAuth }) {
+export default function ConnectionsCard({ providerId, isOAuth, authType, authHint, website }) {
   const [connections, setConnections] = useState([]);
   const [proxyPools, setProxyPools] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -462,6 +483,9 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
       <AddApiKeyModal
         isOpen={showAddModal}
         provider={providerId}
+        authType={authType}
+        authHint={authHint}
+        website={website}
         proxyPools={proxyPools}
         onSave={handleSaveApiKey}
         onClose={() => setShowAddModal(false)}
@@ -490,4 +514,7 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
 ConnectionsCard.propTypes = {
   providerId: PropTypes.string.isRequired,
   isOAuth: PropTypes.bool,
+  authType: PropTypes.string,
+  authHint: PropTypes.string,
+  website: PropTypes.string,
 };

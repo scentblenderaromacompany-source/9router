@@ -52,11 +52,16 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   }, [connection]);
 
   const isOAuth = connection?.authType === "oauth";
+  const isCookie = connection?.authType === "cookie";
   const isAzure = connection?.provider === "azure";
   const isCloudflareAi = connection?.provider === "cloudflare-ai";
   const isCompatible = connection
     ? (isOpenAICompatibleProvider(connection.provider) || isAnthropicCompatibleProvider(connection.provider))
     : false;
+
+  const credentialLabel = isCookie ? "Cookie Value" : "API Key";
+  const credentialPlaceholder = isCookie ? "Paste new cookie/token value" : "Enter new API key";
+  const credentialHint = isCookie ? "Leave blank to keep the current cookie value." : "Leave blank to keep the current API key.";
 
   const handleTest = async () => {
     if (!connection?.provider) return;
@@ -185,12 +190,12 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
           <>
             <div className="flex gap-2">
               <Input
-                label="API Key"
-                type="password"
+                label={credentialLabel}
+                type={isCookie ? "text" : "password"}
                 value={formData.apiKey}
                 onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                placeholder="Enter new API key"
-                hint="Leave blank to keep the current API key."
+                placeholder={credentialPlaceholder}
+                hint={credentialHint}
                 className="flex-1"
               />
               <div className="pt-6">

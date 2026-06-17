@@ -112,7 +112,8 @@ export async function POST(request) {
     if (!provider || !isValidProvider) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
-    if (!apiKey && provider !== "ollama-local") {
+    const isNoAuth = WEB_COOKIE_PROVIDERS[provider]?.authType === "none";
+    if (!apiKey && provider !== "ollama-local" && !isNoAuth) {
       return NextResponse.json({ error: `${isWebCookieProvider ? "Cookie value" : "API Key"} is required` }, { status: 400 });
     }
     const connectionName = name || displayName || AI_PROVIDERS[provider]?.name;
@@ -183,7 +184,7 @@ export async function POST(request) {
 
     const newConnection = await createProviderConnection({
       provider,
-      authType: isWebCookieProvider ? "cookie" : "apikey",
+      authType: isWebCookieProvider ? (WEB_COOKIE_PROVIDERS[provider]?.authType || "cookie") : "apikey",
       name: connectionName,
       apiKey: apiKey || "",
       priority: priority || 1,

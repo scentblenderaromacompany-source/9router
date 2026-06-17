@@ -142,6 +142,8 @@ export default function ProviderModelsPage() {
   const hasDualAuthModes = !isCompatible && isOAuth && supportsApiKeyAuth;
   const oauthConnectionLabel = providerId === "xai" ? "Grok Build OAuth" : "OAuth";
   const apiKeyConnectionLabel = providerId === "xai" ? "xAI API Key" : "API Key";
+  const isCookieProvider = providerInfo?.authType === "cookie";
+  const addConnectionLabel = isCookieProvider ? "Add Cookie" : isOAuth ? oauthConnectionLabel : apiKeyConnectionLabel;
   const thinkingConfig = AI_PROVIDERS[providerId]?.thinkingConfig || THINKING_CONFIG.extended;
   
   const providerStorageAlias = isCompatible ? providerId : providerAlias;
@@ -1340,7 +1342,7 @@ export default function ProviderModelsPage() {
           {connections.length === 0 ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-text-muted">No connections yet</p>
-              <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>Add Connection</Button>
+              <Button size="sm" icon="add" onClick={triggerAddConnection}>{addConnectionLabel}</Button>
             </div>
           ) : (
             <>
@@ -1387,7 +1389,7 @@ export default function ProviderModelsPage() {
                 ))}
               </div>
               <div className="mt-4 flex justify-stretch sm:justify-start">
-                <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>Add</Button>
+                <Button size="sm" icon="add" onClick={triggerAddConnection}>{isCookieProvider ? "Add Cookie" : "Add"}</Button>
               </div>
             </>
           )}
@@ -1436,6 +1438,10 @@ export default function ProviderModelsPage() {
       <AddApiKeyModal
         isOpen={showAddApiKeyModal}
         provider={providerId}
+        providerName={providerInfo?.name}
+        authType={providerInfo?.authType}
+        authHint={providerInfo?.authHint}
+        website={providerInfo?.website}
         proxyPools={proxyPools}
         onSave={handleSaveApiKey}
         onClose={() => setShowAddApiKeyModal(false)}
