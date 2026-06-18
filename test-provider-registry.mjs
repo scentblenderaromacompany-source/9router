@@ -20,11 +20,12 @@ if (PROVIDERS['chatgpt-web']) {
   process.exit(1);
 }
 
-// Test 2: Models registered
+// Test 2: Models registered (using alias "cgpt-web" per provider config)
 console.log('\nTest 2: Model Registration');
-if (PROVIDER_MODELS['chatgpt-web']) {
-  const models = PROVIDER_MODELS['chatgpt-web'];
-  console.log(`✅ Found ${models.length} models for ChatGPT Web`);
+const modelsKey = PROVIDER_MODELS['chatgpt-web'] ? 'chatgpt-web' : 'cgpt-web';
+if (PROVIDER_MODELS[modelsKey]) {
+  const models = PROVIDER_MODELS[modelsKey];
+  console.log(`✅ Found ${models.length} models for ChatGPT Web (key: ${modelsKey})`);
   const modelIds = models.map(m => m.id);
   console.log(`   Models: ${modelIds.join(', ')}`);
   
@@ -90,7 +91,7 @@ console.log('\n✅ Provider registry integration successful!\n');
 // Summary
 console.log('📋 Summary:');
 console.log(`   ✅ Provider registered: chatgpt-web`);
-console.log(`   ✅ Base models available: ${PROVIDER_MODELS['chatgpt-web']?.length || 0} models`);
+console.log(`   ✅ Base models available: ${PROVIDER_MODELS[modelsKey]?.length || 0} models`);
 console.log(`   ✅ Default endpoint: ${PROVIDERS['chatgpt-web']?.baseUrl}`);
 console.log(`   ✅ Authentication: ${PROVIDERS['chatgpt-web']?.authType}`);
 console.log('\n🎉 Integration verified and working!\n');
