@@ -41,6 +41,7 @@ export class PollinationsExecutor extends BaseExecutor {
     super("pollinations", {
       baseUrl: "https://gen.pollinations.ai",
       imageBaseUrl: "https://image.pollinations.ai",
+      noAuth: true,
     });
   }
 

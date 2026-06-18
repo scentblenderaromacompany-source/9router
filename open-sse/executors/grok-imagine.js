@@ -59,6 +59,23 @@ export class GrokImagineExecutor extends BaseExecutor {
     return headers;
   }
 
+  extractPrompt(body) {
+    if (body?.prompt) return body.prompt;
+    if (body?.messages && Array.isArray(body.messages)) {
+      for (let i = body.messages.length - 1; i >= 0; i--) {
+        const msg = body.messages[i];
+        if (msg.role === "user") {
+          if (typeof msg.content === "string") return msg.content;
+          if (Array.isArray(msg.content)) {
+            const textPart = msg.content.find(c => c.type === "text");
+            if (textPart?.text) return textPart.text;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   // ============ Execute ============
 
   async execute({ model, body, stream, credentials, signal, log }) {
@@ -83,7 +100,7 @@ export class GrokImagineExecutor extends BaseExecutor {
   // ============ Image Generation ============
 
   async handleImage(model, body, credentials, signal, log) {
-    const prompt = body?.prompt;
+    const prompt = this.extractPrompt(body);
     if (!prompt) return this.errorResponse("Missing prompt", 400);
 
     const url = this.getImageGenerateUrl();
@@ -120,7 +137,7 @@ export class GrokImagineExecutor extends BaseExecutor {
   // ============ Image Editing ============
 
   async handleImageEdit(model, body, credentials, signal, log) {
-    const prompt = body?.prompt;
+    const prompt = this.extractPrompt(body);
     if (!prompt) return this.errorResponse("Missing prompt", 400);
 
     const hasImage = body?.image;
@@ -163,7 +180,7 @@ export class GrokImagineExecutor extends BaseExecutor {
   // ============ Video Generation ============
 
   async handleVideo(model, body, credentials, signal, log) {
-    const prompt = body?.prompt;
+    const prompt = this.extractPrompt(body);
     if (!prompt) return this.errorResponse("Missing prompt", 400);
 
     const url = this.getVideoGenerateUrl();
@@ -201,7 +218,7 @@ export class GrokImagineExecutor extends BaseExecutor {
   // ============ Video Editing ============
 
   async handleVideoEdit(model, body, credentials, signal, log) {
-    const prompt = body?.prompt;
+    const prompt = this.extractPrompt(body);
     const video = body?.video;
     if (!prompt) return this.errorResponse("Missing prompt", 400);
     if (!video) return this.errorResponse("Missing video", 400);
@@ -237,7 +254,7 @@ export class GrokImagineExecutor extends BaseExecutor {
   // ============ Video Extension ============
 
   async handleVideoExtend(model, body, credentials, signal, log) {
-    const prompt = body?.prompt;
+    const prompt = this.extractPrompt(body);
     const video = body?.video;
     if (!prompt) return this.errorResponse("Missing prompt", 400);
     if (!video) return this.errorResponse("Missing video", 400);

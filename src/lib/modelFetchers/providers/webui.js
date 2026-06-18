@@ -1,6 +1,6 @@
 import { BaseModelFetcher } from "../baseModelFetcher.js";
-import { getProviderByAlias } from "../../shared/constants/providers.js";
-import REGISTRY from "../../../open-sse/providers/registry/index.js";
+import { getProviderByAlias } from "../../../shared/constants/providers.js";
+import REGISTRY from "../../../../open-sse/providers/registry/index.js";
 import { getCustomModels, addCustomModel, deleteCustomModel } from "../../localDb.js";
 
 export class WebUIModelFetcher extends BaseModelFetcher {

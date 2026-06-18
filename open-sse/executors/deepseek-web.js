@@ -243,7 +243,15 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
 
     const data = await response.json();
+
+    if (data.code !== undefined && data.code !== 0) {
+      throw new Error(`Failed to create session: ${data.msg || `code ${data.code}`}`);
+    }
+
     const sessionId = data.data?.biz_data?.id || data.chat_session_id || data.id;
+    if (!sessionId) {
+      throw new Error("Failed to create session: no session ID in response");
+    }
     this.sessions.set(cacheKey, sessionId);
     this.parentMessageIds.set(cacheKey, null);
     return sessionId;
@@ -513,8 +521,13 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       }
 
       const data = await response.json();
+
+      if (data.code !== undefined && data.code !== 0) {
+        return null;
+      }
+
       const challenge = data.data?.biz_data || data;
-      
+
       // In production, solve the PoW challenge here
       // For now, return the challenge data
       return challenge;
@@ -564,6 +577,42 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
         signal,
       });
       
+      // Check for application-level errors (DeepSeek returns HTTP 200 with JSON error codes)
+      const ct = response.headers.get("content-type") || "";
+      if (ct.includes("application/json") && !ct.includes("text/event-stream")) {
+        const bodyText = await response.text();
+        try {
+          const parsed = JSON.parse(bodyText);
+          if (parsed.code !== undefined && parsed.code !== 0) {
+            return this.handleWebApplicationError(parsed, log);
+          }
+          // Successful non-streaming JSON response
+          const cid = `chatcmpl-deepseek-web-${crypto.randomUUID().slice(0, 12)}`;
+          const created = Math.floor(Date.now() / 1000);
+          const bizData = parsed.data?.biz_data || parsed.data || {};
+          const content = bizData.content || "";
+          const msg = { role: "assistant", content };
+          const promptTokens = Math.ceil(content.length / 4);
+          const completionTokens = Math.ceil(content.length / 4);
+          return {
+            response: new Response(JSON.stringify({
+              id: cid,
+              object: "chat.completion",
+              created,
+              model,
+              system_fingerprint: null,
+              choices: [{ index: 0, message: msg, finish_reason: "stop", logprobs: null }],
+              usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: promptTokens + completionTokens },
+            }), { status: 200, headers: { "Content-Type": "application/json" } }),
+            url,
+            headers,
+            transformedBody: payload,
+          };
+        } catch {
+          // Not valid JSON, fall through to handleResponse
+        }
+      }
+
       // Handle auth errors - clear session and retry once
       if (response.status === 401 || response.status === 403) {
         log?.warn?.("DEEPSEEK-WEB", "Auth failed, clearing session and retrying");
@@ -883,6 +932,24 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     
     logger?.warn?.("DEEPSEEK-WEB", errMsg);
     return this.errorResponse(errMsg, status);
+  }
+
+  handleWebApplicationError(data, logger) {
+    const errCode = data.code || 0;
+    let errMsg = data.msg || `DeepSeek API error: code ${errCode}`;
+    
+    if (errCode === 40001) {
+      errMsg = "DeepSeek session expired or invalid";
+    } else if (errCode === 40002) {
+      errMsg = "DeepSeek authentication required — update your USER_TOKEN";
+    } else if (errCode === 40003) {
+      errMsg = "DeepSeek token invalid — update your USER_TOKEN";
+    } else if (errCode === 40004) {
+      errMsg = "DeepSeek rate limited — try again shortly";
+    }
+    
+    logger?.warn?.("DEEPSEEK-WEB", errMsg);
+    return this.errorResponse(errMsg, 502);
   }
 }
 

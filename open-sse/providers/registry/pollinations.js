@@ -26,6 +26,7 @@ export default {
   category: "free",
   authType: "none",
   authHint: "No authentication needed — Pollinations is free",
+  noAuth: true,
   transport: {
     baseUrl: "https://image.pollinations.ai",
     format: "pollinations",

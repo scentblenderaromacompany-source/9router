@@ -36,7 +36,7 @@ function generateStatsigId() {
   return btoa(msg);
 }
 
-async function* readGrokNdjsonEvents(body, signal) {
+async function* readGrokEvents(body, signal) {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -52,13 +52,21 @@ async function* readGrokNdjsonEvents(body, signal) {
         const line = buffer.slice(0, idx).trim();
         buffer = buffer.slice(idx + 1);
         if (!line) continue;
-        try { yield JSON.parse(line); } catch { /* skip */ }
+        let data = line;
+        if (data.startsWith("data: ")) data = data.slice(6);
+        else if (data.startsWith("data:")) data = data.slice(5);
+        if (data === "[DONE]") continue;
+        try { yield JSON.parse(data); } catch { /* skip */ }
       }
     }
-    buffer += decoder.decode();
     const remaining = buffer.trim();
     if (remaining) {
-      try { yield JSON.parse(remaining); } catch { /* skip */ }
+      let data = remaining;
+      if (data.startsWith("data: ")) data = data.slice(6);
+      else if (data.startsWith("data:")) data = data.slice(5);
+      if (data && data !== "[DONE]") {
+        try { yield JSON.parse(data); } catch { /* skip */ }
+      }
     }
   } finally {
     reader.releaseLock();
@@ -120,7 +128,7 @@ export class GrokWebExecutor extends WebUIExecutor {
     const spanId = this.randomHex(8);
     
     const headers = {
-      Accept: "*/*",
+      Accept: "text/event-stream",
       "Accept-Encoding": "gzip, deflate, br, zstd",
       "Accept-Language": "en-US,en;q=0.9",
       Baggage: "sentry-environment=production,sentry-release=d6add6fb0460641fd482d767a335ef72b9b6abb8,sentry-public_key=b311e0f2690c81f25e2c4cf6d4f7ce1c",
@@ -159,7 +167,7 @@ export class GrokWebExecutor extends WebUIExecutor {
     let responseId = "";
     let thinkOpened = false;
 
-    for await (const event of readGrokNdjsonEvents(responseBody, signal)) {
+    for await (const event of readGrokEvents(responseBody, signal)) {
       if (event.error) {
         yield { error: event.error.message || `Grok error: ${event.error.code}`, done: true };
         return;
@@ -169,6 +177,11 @@ export class GrokWebExecutor extends WebUIExecutor {
 
       if (resp.llmInfo?.modelHash && !fingerprint) fingerprint = resp.llmInfo.modelHash;
       if (resp.responseId) responseId = resp.responseId;
+
+      if (resp.isThinking) {
+        thinkOpened = true;
+        continue;
+      }
 
       if (resp.modelResponse) {
         const mr = resp.modelResponse;

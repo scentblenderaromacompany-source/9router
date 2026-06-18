@@ -1,5 +1,5 @@
-import { getSettings } from "../../localDb.js";
-import { getProviderConnections } from "../../localDb.js";
+import { getSettings } from "../localDb.js";
+import { getProviderConnections } from "../localDb.js";
 import { getProviderByAlias } from "../../shared/constants/providers.js";
 import { OpenAIModelFetcher } from "./providers/openai.js";
 import { AnthropicModelFetcher } from "./providers/anthropic.js";
@@ -18,7 +18,7 @@ import { ClaudeWebModelFetcher } from "./providers/claude-web.js";
 import { GeminiWebModelFetcher } from "./providers/gemini-web.js";
 import { BaseModelFetcher } from "./baseModelFetcher.js";
 import { MODEL_FETCHER_CONFIG } from "../../shared/constants/modelFetcherConfig.js";
-import { getCustomModels } from "../../localDb.js";
+import { getCustomModels } from "../localDb.js";
 
 export class ModelFetcherScheduler {
   constructor() {
