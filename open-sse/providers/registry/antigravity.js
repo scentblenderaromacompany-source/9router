@@ -29,11 +29,11 @@ export default {
     },
     retry: {
       "429": {
-        attempts: 3,
+        "attempts": 6
       },
       "503": {
-        attempts: 3,
-      },
+        "attempts": 3
+      }
     },
     usage: {
       quotaApiUrl: "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels",

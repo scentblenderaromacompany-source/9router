@@ -23,8 +23,8 @@ export default {
       image: "Free plan with compute units. Paid plans for more generations.",
     },
   },
-  category: "imageGen",
-  authType: "apiKey",
+  category: "apikey",
+  authType: "apikey",
   authHint: "Get your API key from https://www.krea.ai/app/api",
   transport: {
     baseUrl: "https://api.krea.ai",
@@ -44,6 +44,6 @@ export default {
     { id: "dall-e-3", name: "DALL-E 3", capabilities: ["text2img"], params: ["width", "height", "quality"] },
     { id: "midjourney-v6", name: "Midjourney V6", capabilities: ["text2img"], params: ["width", "height", "seed", "style"] },
   ],
-  serviceKinds: ["imageGen"],
+  serviceKinds: ["image"],
   hasProviderSpecificData: false,
 };

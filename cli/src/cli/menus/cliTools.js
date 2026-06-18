@@ -1,7 +1,7 @@
 const api = require("../api/client");
-const { pause, confirm } = require("../utils/input");
-const { showStatus } = require("../utils/display");
-const { selectModelFromList } = require("../utils/modelSelector");
+const { pause, confirm, prompt } = require("../utils/input");
+const { showStatus, showTable, clearScreen, showHeader } = require("../utils/display");
+const { selectModelFromList, getAvailableModelsGrouped } = require("../utils/modelSelector");
 const { showMenuWithBack } = require("../utils/menuHelper");
 const { getEndpoint } = require("../utils/endpoint");
 
@@ -10,7 +10,9 @@ const COLORS = {
   green: "\x1b[32m",
   red: "\x1b[31m",
   dim: "\x1b[2m",
-  cyan: "\x1b[36m"
+  cyan: "\x1b[36m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m"
 };
 
 // Claude model types with defaults (matching Web UI)
@@ -615,4 +617,302 @@ async function showCliToolsMenu(port, breadcrumb = []) {
   });
 }
 
-module.exports = { showCliToolsMenu };
+// ─── Model Information & Commands ──────────────────────────────────────────────────────────────
+
+/**
+ * Build model information for a provider
+ * @param {string} providerId - Provider ID
+ * @returns {Promise<Object>} Model information
+ */
+async function getProviderModelInfo(providerId) {
+  try {
+    const result = await api.getProviderModels(providerId);
+    if (!result.success) return null;
+    
+    const models = result.data.models || [];
+    const providerInfo = {
+      providerId,
+      models: models.map(m => ({
+        id: m.id,
+        name: m.name || m.id,
+        description: m.description || "",
+        contextWindow: m.contextWindow || m.context_length || 0,
+        priceInput: m.priceInput || m.price_input || 0,
+        priceOutput: m.priceOutput || m.price_output || 0,
+        capabilities: m.capabilities || [],
+        provider: m.provider || providerId
+      }))
+    };
+    
+    return providerInfo;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * List models for a specific provider
+ * @param {string} providerId - Provider ID
+ * @param {number} port - Server port
+ */
+async function listProviderModels(providerId, port) {
+  clearScreen();
+  const providerInfo = await getProviderModelInfo(providerId);
+  
+  if (!providerInfo) {
+    showStatus(`Failed to fetch models for provider: ${providerId}`, "error");
+    await pause();
+    return;
+  }
+  
+  showHeader("📋 Provider Models", `Provider: ${providerId} > Available Models`);
+  
+  if (providerInfo.models.length === 0) {
+    console.log(`\n${COLORS.dim}No models available for this provider.${COLORS.reset}\n`);
+    await pause();
+    return;
+  }
+  
+  // Display models in table format
+  const headers = ["Model ID", "Name", "Context Window", "Input Price", "Output Price", "Capabilities"];
+  const rows = providerInfo.models.map(model => [
+    model.id,
+    model.name,
+    model.contextWindow ? `${(model.contextWindow / 1000).toFixed(0)}K` : "N/A",
+    model.priceInput ? `$${model.priceInput}/1M` : "N/A",
+    model.priceOutput ? `$${model.priceOutput}/1M` : "N/A",
+    model.capabilities.length ? model.capabilities.join(", ") : "Basic"
+  ]);
+  
+  showTable(headers, rows);
+  
+  console.log(`\n${COLORS.dim}Total models: ${providerInfo.models.length}${COLORS.reset}`);
+  await pause();
+}
+
+/**
+ * Search and filter models
+ * @param {number} port - Server port
+ */
+async function searchAndFilterModels(port) {
+  clearScreen();
+  showHeader("🔍 Search & Filter Models", "Find models by provider, capabilities, or keywords");
+  
+  const { combos: rawCombos, groups } = await getAvailableModelsGrouped();
+  const allProviders = Object.keys(groups);
+  
+  console.log(`\n${COLORS.cyan}Available Providers:${COLORS.reset}`);
+  allProviders.forEach((provider, idx) => {
+    const modelCount = groups[provider].length;
+    console.log(`  ${idx + 1}. ${provider} (${modelCount} models)`);
+  });
+  
+  if (rawCombos.length > 0) {
+    console.log(`\n${COLORS.cyan}Available Combos:${COLORS.reset}`);
+    rawCombos.forEach((combo, idx) => {
+      console.log(`  ${idx + 1 + allProviders.length}. ${combo}`);
+    });
+  }
+  
+  console.log(`\n${COLORS.dim}Enter provider number to see models, or 'search' to filter by keyword:${COLORS.reset}`);
+  const input = await prompt("Selection or keyword: ");
+  
+  if (!input) return;
+  
+  if (input.toLowerCase() === "search") {
+    await searchByKeyword(port);
+    return;
+  }
+  
+  const idx = parseInt(input) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= allProviders.length + (rawCombos.length > 0 ? rawCombos.length : 0)) {
+    showStatus("Invalid selection", "error");
+    await pause();
+    return;
+  }
+  
+  if (idx < allProviders.length) {
+    const providerId = allProviders[idx];
+    await listProviderModels(providerId, port);
+  } else {
+    const comboIdx = idx - allProviders.length;
+    const comboName = rawCombos[comboIdx];
+    console.log(`\n${COLORS.green}Combo: ${comboName}${COLORS.reset}`);
+    await pause();
+  }
+}
+
+/**
+ * Search models by keyword
+ * @param {number} port - Server port
+ */
+async function searchByKeyword(port) {
+  clearScreen();
+  showHeader("🔎 Search Models by Keyword", "Enter keywords to find relevant models");
+  
+  const keyword = await prompt("Enter keyword (e.g., 'claude', 'gpt', 'gemini', 'vision'): ");
+  if (!keyword) return;
+  
+  const { combos: rawCombos, groups } = await getAvailableModelsGrouped();
+  
+  const results = {
+    providers: [],
+    combos: []
+  };
+  
+  const lowerKeyword = keyword.toLowerCase();
+  
+  // Search in providers
+  Object.entries(groups).forEach(([provider, models]) => {
+    const matchingModels = models.filter(model => 
+      model.toLowerCase().includes(lowerKeyword) ||
+      provider.toLowerCase().includes(lowerKeyword)
+    );
+    if (matchingModels.length > 0) {
+      results.providers.push({
+        provider,
+        models: matchingModels,
+        count: matchingModels.length
+      });
+    }
+  });
+  
+  // Search in combos
+  rawCombos.forEach(combo => {
+    if (combo.toLowerCase().includes(lowerKeyword)) {
+      results.combos.push(combo);
+    }
+  });
+  
+  clearScreen();
+  showHeader("🔎 Search Results", `Keyword: "${keyword}" - Found ${results.providers.reduce((sum, p) => sum + p.count, 0)} models`);
+  
+  if (results.providers.length === 0 && results.combos.length === 0) {
+    console.log(`\n${COLORS.red}No models found matching "${keyword}".${COLORS.reset}\n`);
+    await pause();
+    return;
+  }
+  
+  // Display results
+  if (results.providers.length > 0) {
+    console.log(`\n${COLORS.cyan}Matching Models:${COLORS.reset}`);
+    results.providers.forEach(item => {
+      console.log(`\n${COLORS.green}${item.provider}:${COLORS.reset}`);
+      item.models.forEach(model => console.log(`  • ${model}`));
+    });
+  }
+  
+  if (results.combos.length > 0) {
+    console.log(`\n${COLORS.cyan}Matching Combos:${COLORS.reset}`);
+    results.combos.forEach(combo => console.log(`  • ${combo}`));
+  }
+  
+  await pause();
+}
+
+/**
+ * Show model help and documentation
+ */
+async function showModelHelp() {
+  clearScreen();
+  showHeader("📚 Model Information & Help", "Understanding models and their capabilities");
+  
+  console.log(`\n${COLORS.bright}${COLORS.green}Model Types:${COLORS.reset}`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.cyan}Base Models${COLORS.reset} - Individual AI models from providers (e.g., gpt-4o, claude-3-5-sonnet)`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.cyan}Combos${COLORS.reset} - Pre-configured model combinations (e.g., optimized for coding, reasoning)`);
+  
+  console.log(`\n${COLORS.bright}${COLORS.green}Model Selection Tips:${COLORS.reset}`);
+  console.log(`${COLORS.dim}•${COLORS.reset} Use models with larger context windows for long conversations or documents`);
+  console.log(`${COLORS.dim}•${COLORS.reset} Consider pricing when running frequently tasks`);
+  console.log(`${COLORS.dim}•${COLORS.reset} Some models support specific capabilities (vision, coding, reasoning)`);
+  
+  console.log(`\n${COLORS.bright}${COLORS.green}Common Providers:${COLORS.reset}`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.cyan}OpenAI${COLORS.reset} (openai) - GPT models`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.cyan}Anthropic${COLORS.reset} (anthropic) - Claude models`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.cyan}Google${COLORS.reset} (gemini) - Gemini models`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.cyan}GitHub${COLORS.reset} (github) - GitHub Copilot`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.cyan}OpenRouter${COLORS.reset} (openrouter) - Multi-provider access`);
+  
+  console.log(`\n${COLORS.bright}${COLORS.green}Commands Available:${COLORS.reset}`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.yellow}List Models${COLORS.reset} - View all models for a provider`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.yellow}Search Models${COLORS.reset} - Find models by keyword or provider`);
+  console.log(`${COLORS.dim}•${COLORS.reset} ${COLORS.yellow}Model Help${COLORS.reset} - Show this help information`);
+  
+  await pause();
+}
+
+// ─── Enhanced CLI Tools Menu ─────────────────────────────────────────────────────────────────
+
+/**
+ * Enhanced CLI Tools menu with model information
+ * @param {number} port
+ * @param {Array<string>} breadcrumb
+ */
+async function showEnhancedCliToolsMenu(port, breadcrumb = []) {
+  const { endpoint } = await getEndpoint(port);
+  
+  // Get model counts for display
+  const { combos: rawCombos, groups } = await getAvailableModelsGrouped();
+  const totalModels = rawCombos.length + Object.values(groups).flat().length;
+  
+  await showMenuWithBack({
+    title: "🔧 CLI Tools",
+    breadcrumb,
+    headerContent: `Configure CLI tools to use 9Router\nEndpoint: ${endpoint}\nTotal Models Available: ${totalModels}`,
+    items: [
+      {
+        label: "Claude Code",
+        action: async () => { await showClaudeCodeMenu(port, [...breadcrumb, "Claude Code"]); return true; }
+      },
+      {
+        label: "Codex CLI",
+        action: async () => { await showCodexMenu(port, [...breadcrumb, "Codex CLI"]); return true; }
+      },
+      {
+        label: "Factory Droid",
+        action: async () => { await showDroidMenu(port, [...breadcrumb, "Factory Droid"]); return true; }
+      },
+      {
+        label: "Open Claw",
+        action: async () => { await showOpenClawMenu(port, [...breadcrumb, "Open Claw"]); return true; }
+      },
+      {
+        label: "OpenCode",
+        action: async () => { await showOpenCodeMenu(port, [...breadcrumb, "OpenCode"]); return true; }
+      },
+      {
+        label: "Hermes",
+        action: async () => { await showHermesMenu(port, [...breadcrumb, "Hermes"]); return true; }
+      },
+      {
+        label: "📋 List Provider Models",
+        action: async () => {
+          const { select } = require("../utils/input");
+          const allProviders = Object.keys(groups);
+          const providerOptions = allProviders.map((p, i) => `${i + 1}. ${p} (${groups[p].length} models)`);
+          const selected = await select("Select provider to list models:", providerOptions);
+          if (selected !== -1) {
+            await listProviderModels(allProviders[selected], port);
+          }
+          return true;
+        }
+      },
+      {
+        label: "🔍 Search & Filter Models",
+        action: async () => { await searchAndFilterModels(port); return true; }
+      },
+      {
+        label: "📚 Model Help",
+        action: async () => { await showModelHelp(); return true; }
+      }
+    ]
+  });
+}
+
+module.exports = { 
+  showCliToolsMenu, 
+  showEnhancedCliToolsMenu,
+  listProviderModels,
+  searchAndFilterModels,
+  showModelHelp
+};
