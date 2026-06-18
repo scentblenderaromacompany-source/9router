@@ -1,15 +1,17 @@
 import { BaseModelFetcher } from "../baseModelFetcher.js";
 import { getProviderByAlias } from "../../shared/constants/providers.js";
+import REGISTRY from "../../../open-sse/providers/registry/index.js";
 import { getCustomModels, addCustomModel, deleteCustomModel } from "../../localDb.js";
 
 export class WebUIModelFetcher extends BaseModelFetcher {
   constructor(providerId, connection, config = {}) {
     super(providerId, connection, config);
     this.providerInfo = getProviderByAlias(providerId);
+    this.registryEntry = REGISTRY.find(r => r.id === providerId) || null;
   }
 
   async performFetch() {
-    const registryModels = this.providerInfo?.models;
+    const registryModels = this.registryEntry?.models;
     if (registryModels && registryModels.length > 0) {
       return registryModels.map(m => ({
         id: m.id,
@@ -18,7 +20,7 @@ export class WebUIModelFetcher extends BaseModelFetcher {
         params: m.params || [],
         contextLength: m.contextLength || 8192,
         maxTokens: m.maxTokens || 4096,
-        description: m.description || `${this.providerInfo?.display?.name || this.providerId} model: ${m.name || m.id}`,
+        description: m.description || `${this.registryEntry?.display?.name || this.providerInfo?.name || this.providerId} model: ${m.name || m.id}`,
         priceInput: 0,
         priceOutput: 0,
         quotaFamily: "free",
@@ -26,12 +28,12 @@ export class WebUIModelFetcher extends BaseModelFetcher {
     }
 
     return [
-      { id: "default", name: `${this.providerInfo?.display?.name || this.providerId} Default`, capabilities: ["text"], params: ["temperature", "max_tokens"] },
+      { id: "default", name: `${this.registryEntry?.display?.name || this.providerInfo?.name || this.providerId} Default`, capabilities: ["text"], params: ["temperature", "max_tokens"] },
     ];
   }
 
   getModelType() {
-    const kinds = this.providerInfo?.serviceKinds || ["llm"];
+    const kinds = this.registryEntry?.serviceKinds || ["llm"];
     if (kinds.includes("image")) return "image";
     if (kinds.includes("embedding")) return "embedding";
     if (kinds.includes("tts")) return "tts";
@@ -41,7 +43,7 @@ export class WebUIModelFetcher extends BaseModelFetcher {
   }
 
   getDefaultModelId() {
-    const models = this.providerInfo?.models;
+    const models = this.registryEntry?.models;
     return models?.[0]?.id || "default";
   }
 
