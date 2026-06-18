@@ -1,15 +1,24 @@
-import { NextResponse } from "next/server";
-import { ModelFetcherScheduler } from "@/lib/modelFetchers/scheduler";
-import { getProviderConnections } from "@/lib/localDb";
-import { getProviderByAlias } from "@/shared/constants/providers";
-import { OpenAIModelFetcher } from "@/lib/modelFetchers/providers/openai";
-import { AnthropicModelFetcher } from "@/lib/modelFetchers/providers/anthropic";
-import { GeminiModelFetcher } from "@/lib/modelFetchers/providers/gemini";
-import { ClaudeModelFetcher } from "@/lib/modelFetchers/providers/claude";
-import { CohereModelFetcher } from "@/lib/modelFetchers/providers/cohere";
-import { BaseModelFetcher } from "@/lib/modelFetchers/baseModelFetcher";
-import { MODEL_FETCHER_CONFIG } from "@/shared/constants/modelFetcherConfig";
-import { getCustomModels } from "@/lib/localDb";
+import { ModelFetcherScheduler } from "./scheduler.js";
+import { getProviderConnections } from "../../localDb.js";
+import { getProviderByAlias } from "../../shared/constants/providers.js";
+import { OpenAIModelFetcher } from "./providers/openai.js";
+import { AnthropicModelFetcher } from "./providers/anthropic.js";
+import { GeminiModelFetcher } from "./providers/gemini.js";
+import { ClaudeModelFetcher } from "./providers/claude.js";
+import { CohereModelFetcher } from "./providers/cohere.js";
+import { WebUIModelFetcher } from "./providers/webui.js";
+import { DeepseekWebModelFetcher } from "./providers/deepseek-web.js";
+import { KimiWebModelFetcher } from "./providers/kimi-web.js";
+import { ZAiWebModelFetcher } from "./providers/z-ai-web.js";
+import { ChatgptWebModelFetcher } from "./providers/chatgpt-web.js";
+import { GrokWebModelFetcher } from "./providers/grok-web.js";
+import { MinimaxWebModelFetcher } from "./providers/minimax-web.js";
+import { PerplexityWebModelFetcher } from "./providers/perplexity-web.js";
+import { ClaudeWebModelFetcher } from "./providers/claude-web.js";
+import { GeminiWebModelFetcher } from "./providers/gemini-web.js";
+import { BaseModelFetcher } from "./baseModelFetcher.js";
+import { MODEL_FETCHER_CONFIG } from "../../shared/constants/modelFetcherConfig.js";
+import { getCustomModels } from "../../localDb.js";
 
 export class EnhancedModelFetcherScheduler {
   constructor() {
@@ -55,6 +64,18 @@ export class EnhancedModelFetcherScheduler {
 
     const providerType = providerInfo.category;
 
+    const WEBUI_FETCHER_MAP = {
+      "deepseek-web": DeepseekWebModelFetcher,
+      "kimi-web": KimiWebModelFetcher,
+      "z-ai-web": ZAiWebModelFetcher,
+      "chatgpt-web": ChatgptWebModelFetcher,
+      "grok-web": GrokWebModelFetcher,
+      "minimax-web": MinimaxWebModelFetcher,
+      "perplexity-web": PerplexityWebModelFetcher,
+      "claude-web": ClaudeWebModelFetcher,
+      "gemini-web": GeminiWebModelFetcher,
+    };
+
     switch (providerType) {
       case "freeTier":
       case "apikey":
@@ -67,6 +88,9 @@ export class EnhancedModelFetcherScheduler {
         return ClaudeModelFetcher;
       case "cohere":
         return CohereModelFetcher;
+      case "webCookie":
+      case "free":
+        return WEBUI_FETCHER_MAP[providerId] || WebUIModelFetcher;
       default:
         return OpenAIModelFetcher;
     }

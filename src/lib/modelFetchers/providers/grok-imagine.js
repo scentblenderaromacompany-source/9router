@@ -2,31 +2,32 @@ import { BaseModelFetcher } from "../baseModelFetcher.js";
 import { fetchWithEnhancedRetry } from "../errorHandler.js";
 import { getCustomModels, addCustomModel, deleteCustomModel } from "../../localDb.js";
 
-export class OpenAIModelFetcher extends BaseModelFetcher {
+export class GrokImagineModelFetcher extends BaseModelFetcher {
   constructor(providerId, connection, config = {}) {
     super(providerId, connection, config);
-    this.baseUrl = connection.providerSpecificData?.baseUrl;
+    this.baseUrl = connection.providerSpecificData?.baseUrl || "https://grok.x.ai";
     this.apiKey = connection.apiKey;
     this.prefix = connection.providerSpecificData?.prefix;
   }
 
   async performFetch() {
     if (!this.baseUrl) {
-      throw new Error("No base URL configured for OpenAI compatible provider");
+      throw new Error("No base URL configured for Grok Imagine provider");
     }
 
-    const url = `${this.baseUrl.replace(/\/$/, "")}/models`;
+    const url = `${this.baseUrl}/api/v1/models`;
     const response = await fetchWithEnhancedRetry(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.apiKey}`,
       },
       providerId: this.providerId,
     });
 
     const data = await response.json();
-    const models = data.data || data.models || [];
+    const models = data.models || [
+      { id: "grok-imagine", name: "Grok Imagine", capabilities: ["text2img"], params: ["width", "height", "seed"] },
+    ];
     return models;
   }
 
@@ -42,20 +43,20 @@ export class OpenAIModelFetcher extends BaseModelFetcher {
         providerAlias: this.providerId,
         id: modelId,
         name: modelName,
-        type: "llm",
-        description: model.description || "",
-        contextLength: model.context_length || model.contextLength || null,
-        maxTokens: model.max_tokens || model.maxOutputTokens || null,
-        priceInput: model.price_input || model.priceInput || null,
-        priceOutput: model.price_output || model.priceOutput || null,
-        capabilities: model.capabilities || null,
-        isDefault: model.is_default || model.isDefault || false,
-        upstreamModelId: model.upstream_model_id || model.upstreamModelId || null,
-        rateMultiplier: model.rate_multiplier || model.rateMultiplier || 1.0,
-        quotaFamily: model.quota_family || model.quotaFamily || null,
-        isVL: model.is_vl || model.isVL || false,
-        isReasoning: model.is_reasoning || model.isReasoning || false,
-        maxOutputTokens: model.max_output_tokens || model.maxOutputTokens || null,
+        type: "image",
+        description: model.description || `Free Grok Imagine model: ${modelName}`,
+        contextLength: model.contextLength || null,
+        maxTokens: model.maxTokens || null,
+        priceInput: 0.0,
+        priceOutput: 0.0,
+        capabilities: model.capabilities || ["text2img"],
+        isDefault: model.id === "grok-imagine",
+        upstreamModelId: model.id,
+        rateMultiplier: 1.0,
+        quotaFamily: "free",
+        isVL: false,
+        isReasoning: false,
+        maxOutputTokens: model.maxTokens || 1024,
       });
 
       existingCustomIds.delete(modelId);

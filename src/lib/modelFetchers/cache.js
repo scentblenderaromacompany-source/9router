@@ -1,4 +1,4 @@
-import { getSettings } from "@/lib/localDb";
+import { getSettings } from "../localDb.js";
 
 export class ModelCache {
   constructor() {

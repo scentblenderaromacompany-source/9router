@@ -1,4 +1,4 @@
-import { MODEL_FETCHER_CONFIG } from "@/shared/constants/modelFetcherConfig";
+import { MODEL_FETCHER_CONFIG } from "../../shared/constants/modelFetcherConfig.js";
 const { RATE_LIMIT_CONFIG } = MODEL_FETCHER_CONFIG;
 
 export class RateLimiter {

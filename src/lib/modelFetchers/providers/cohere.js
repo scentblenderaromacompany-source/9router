@@ -1,6 +1,6 @@
-import { BaseModelFetcher } from "@/lib/modelFetchers/baseModelFetcher";
-import { fetchWithEnhancedRetry } from "@/lib/modelFetchers/errorHandler";
-import { getCustomModels, addCustomModel, deleteCustomModel } from "@/lib/localDb";
+import { BaseModelFetcher } from "../baseModelFetcher.js";
+import { fetchWithEnhancedRetry } from "../errorHandler.js";
+import { getCustomModels, addCustomModel, deleteCustomModel } from "../../localDb.js";
 
 export class CohereModelFetcher extends BaseModelFetcher {
   constructor(providerId, connection, config = {}) {

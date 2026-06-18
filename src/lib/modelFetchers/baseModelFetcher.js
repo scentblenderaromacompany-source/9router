@@ -1,9 +1,9 @@
-import { fetchWithRetry, fetchWithEnhancedRetry, FetchError, CircuitBreaker } from "@/lib/modelFetchers/errorHandler";
-import { RateLimiter } from "@/lib/modelFetchers/rateLimiter";
-import { ModelCache } from "@/lib/modelFetchers/cache";
-import { getProviderByAlias } from "@/shared/constants/providers";
-import { MODEL_FETCHER_CONFIG } from "@/shared/constants/modelFetcherConfig";
-import { getCustomModels, addCustomModel, deleteCustomModel } from "@/lib/localDb";
+import { fetchWithRetry, fetchWithEnhancedRetry, FetchError, CircuitBreaker } from "./errorHandler.js";
+import { RateLimiter } from "./rateLimiter.js";
+import { ModelCache } from "./cache.js";
+import { getProviderByAlias } from "../../shared/constants/providers.js";
+import { MODEL_FETCHER_CONFIG } from "../../shared/constants/modelFetcherConfig.js";
+import { getCustomModels, addCustomModel, deleteCustomModel } from "../localDb.js";
 
 export class BaseModelFetcher {
   constructor(providerId, connection, config = {}) {
