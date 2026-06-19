@@ -3,8 +3,14 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { log, err } = require("../logger");
-const { TOOL_HOSTS } = require("../../shared/constants/mitmToolHosts.js");
 const { runElevatedPowerShell, isAdmin } = require("../winElevated.js");
+
+const TOOL_HOSTS = {
+  antigravity: ["daily-cloudcode-pa.googleapis.com", "cloudcode-pa.googleapis.com"],
+  copilot: ["api.individual.githubcopilot.com"],
+  kiro: ["runtime.us-east-1.kiro.dev", "q.us-east-1.amazonaws.com", "codewhisperer.us-east-1.amazonaws.com"],
+  cursor: ["api2.cursor.sh"],
+};
 
 /**
  * Atomic-ish write for Windows hosts file with rollback on failure.
