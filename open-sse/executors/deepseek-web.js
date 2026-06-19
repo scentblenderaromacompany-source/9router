@@ -4,7 +4,8 @@ import { PROVIDERS } from "../config/providers.js";
 
 const DEEPSEEK_API = "https://chat.deepseek.com";
 const DEEPSEEK_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const DEEPSEEK_CLIENT_VERSION = "2.0.2";
+const DEEPSEEK_APP_VERSION = "2.0.0";
+const DEEPSEEK_CLIENT_VERSION = "2.0.0";
 
 const MODEL_MAP = {
   // DeepSeek V4 Flash models
@@ -141,6 +142,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
   // ============ Header Builders ============
 
   async buildWebHeaders(credentials) {
+    const tzOffset = -new Date().getTimezoneOffset() * 60;
     const headers = {
       Accept: "text/event-stream",
       "Accept-Language": "en-US,en;q=0.9",
@@ -148,8 +150,12 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       "User-Agent": DEEPSEEK_USER_AGENT,
       Origin: DEEPSEEK_API,
       Referer: `${DEEPSEEK_API}/`,
+      "x-app-version": DEEPSEEK_APP_VERSION,
       "x-client-version": DEEPSEEK_CLIENT_VERSION,
+      "x-client-bundle-id": "com.deepseek.chat",
       "x-client-platform": "web",
+      "x-client-locale": "en_US",
+      "x-client-timezone-offset": String(tzOffset),
     };
 
     if (credentials?.apiKey) {
@@ -162,7 +168,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
   // ============ Payload Builders ============
 
   async buildWebPayload(model, messages, stream, credentials) {
-    const modelInfo = MODEL_MAP[model] || { mode: "chat", name: model };
+    const modelInfo = MODEL_MAP[model] || { mode: "default", name: model };
     const prompt = this.buildPrompt(messages);
     const sessionId = await this.getOrCreateSession(credentials);
     const parentId = this.getParentMessageId(credentials);
@@ -174,11 +180,13 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       prompt,
       chat_session_id: sessionId,
       parent_message_id: parentId,
-      model: modelInfo.mode,
+      model_type: null,
       stream: stream ?? false,
       search_enabled: model.includes("search"),
       thinking_enabled: model.includes("reasoner"),
       ref_file_ids: [],
+      action: null,
+      preempt: false,
     };
 
     // Add PoW response header
@@ -253,7 +261,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       throw new Error("Failed to create session: no session ID in response");
     }
     this.sessions.set(cacheKey, sessionId);
-    this.parentMessageIds.set(cacheKey, null);
+    this.parentMessageIds.set(cacheKey, 0);
     return sessionId;
   }
 
@@ -277,12 +285,16 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
 
   getParentMessageId(credentials) {
     const cacheKey = credentials?.apiKey || "default";
-    return this.parentMessageIds.get(cacheKey) || null;
+    return this.parentMessageIds.get(cacheKey) ?? 0;
   }
 
   updateParentMessageId(credentials, messageId) {
     const cacheKey = credentials?.apiKey || "default";
-    this.parentMessageIds.set(cacheKey, messageId);
+    // DeepSeek uses integer message IDs (0, 1, 2...)
+    const numId = typeof messageId === "number" ? messageId : parseInt(messageId, 10);
+    if (!isNaN(numId)) {
+      this.parentMessageIds.set(cacheKey, numId);
+    }
   }
 
   clearSession(credentials) {
@@ -830,14 +842,31 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
           const eventBlock = buffer.slice(0, eventEnd);
           buffer = buffer.slice(eventEnd + 2);
           
+          let eventName = "";
           let eventData = "";
           for (const line of eventBlock.split("\n")) {
-            if (line.startsWith("data: ")) {
+            if (line.startsWith("event: ")) {
+              eventName = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
               eventData = line.slice(6);
             }
           }
           
           if (!eventData || eventData === "[DONE]") continue;
+          
+          // Skip non-message events (ready, update_session, close)
+          if (eventName === "ready") {
+            // Extract initial response_message_id for parent tracking
+            try {
+              const ready = JSON.parse(eventData);
+              if (ready.response_message_id) {
+                yield { messageId: ready.response_message_id };
+              }
+            } catch { /* skip */ }
+            continue;
+          }
+          
+          if (eventName === "update_session" || eventName === "close") continue;
           
           try {
             const data = JSON.parse(eventData);
@@ -858,24 +887,45 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
               }
             }
             
-            // DeepSeek v0 API format
-            if (data.v) {
-              if (typeof data.v === "string") {
-                yield { delta: data.v };
-              } else if (data.v.response?.message_id) {
-                yield { messageId: data.v.response.message_id };
+            // DeepSeek v0 API format — message object with response info
+            if (data.v && typeof data.v === "object" && data.v.response) {
+              const resp = data.v.response;
+              if (resp.message_id) {
+                yield { messageId: resp.message_id };
+              }
+              // Check for fragments with content
+              if (resp.fragments) {
+                for (const frag of resp.fragments) {
+                  if (frag.content && frag.type === "RESPONSE") {
+                    yield { delta: frag.content };
+                  }
+                  if (frag.content && frag.type === "THINK") {
+                    yield { thinking: frag.content };
+                  }
+                }
+              }
+              // Check status
+              if (resp.status === "FINISHED") {
+                yield { done: true };
+                return;
               }
             }
             
-            // Content fragments
-            if (data.p === "response/content" || data.o === "APPEND") {
+            // DeepSeek v0 API format — string value
+            if (data.v && typeof data.v === "string") {
+              yield { delta: data.v };
+            }
+            
+            // Content fragments (patch operations)
+            if (data.p === "response/fragments/-1/content" || data.o === "APPEND") {
               if (typeof data.v === "string") {
                 yield { delta: data.v };
               }
             }
             
             // Thinking content
-            if (data.p === "response/thinking_content") {
+            if (data.p === "response/thinking_content" || 
+                (data.p && data.p.includes("fragments") && data.p.includes("THINK"))) {
               if (typeof data.v === "string") {
                 yield { thinking: data.v };
               }
