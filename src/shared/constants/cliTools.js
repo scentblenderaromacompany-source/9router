@@ -705,7 +705,7 @@ amp --model "{{model}}"
       },
       {
         type: "info",
-        text: "18 endpoints available: chat, sessions, history, files, user settings, shared conversations, characters.",
+        text: "For best results, also copy browser cookies (ds_session_id, aws-waf-token) from DevTools → Application → Cookies.",
       },
     ],
     guideSteps: [
@@ -716,16 +716,26 @@ amp --model "{{model}}"
       },
       {
         step: 2,
+        title: "Copy Browser Cookies (Recommended)",
+        desc: "Open DevTools (F12) → Application → Cookies → chat.deepseek.com → copy the cookie values as a single string: 'ds_session_id=xxx; aws-waf-token=yyy; smidV2=zzz'",
+      },
+      {
+        step: 3,
         title: "Add DeepSeek Web Provider",
         desc: "Go to Providers → Add New → Select 'DeepSeek Web (Native)'",
       },
       {
-        step: 3,
+        step: 4,
         title: "Paste User Token",
         desc: "Paste your USER_TOKEN value in the authentication field.",
       },
       {
-        step: 4,
+        step: 5,
+        title: "Configure Cookies (Optional)",
+        desc: "If you copied cookies, go to the provider's Edit → paste in the 'Cookies' field under Advanced Settings.",
+      },
+      {
+        step: 6,
         title: "Select Model",
         desc: "Choose from deepseek-default, deepseek-reasoner, deepseek-expert, or deepseek-vision.",
       },
@@ -735,7 +745,10 @@ amp --model "{{model}}"
       code: `{
   "provider": "deepseek-web",
   "model": "deepseek-default",
-  "apiKey": "<your-deepseek-user-token>"
+  "apiKey": "<your-deepseek-user-token>",
+  "providerSpecificData": {
+    "cookies": "ds_session_id=xxx; aws-waf-token=yyy; smidV2=zzz"
+  }
 }`,
     },
   },

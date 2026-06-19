@@ -568,6 +568,30 @@ export async function POST(request) {
           break;
         }
 
+        case "deepseek-web": {
+          const token = apiKey;
+          const cookies = providerSpecificData?.cookies;
+          const headers = {
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Origin": "https://chat.deepseek.com",
+            "Referer": "https://chat.deepseek.com/",
+            "Authorization": `Bearer ${token}`,
+          };
+          if (cookies) headers["Cookie"] = cookies;
+          const res = await fetch("https://chat.deepseek.com/api/v0/users/me", {
+            headers,
+            signal: AbortSignal.timeout(10000),
+          });
+          if (res.status === 401 || res.status === 403) {
+            isValid = false;
+            error = "Invalid USER_TOKEN — re-paste from chat.deepseek.com DevTools → Application → Local Storage → USER_TOKEN";
+          } else {
+            isValid = true;
+          }
+          break;
+        }
+
         default: {
           // Generic probe for OpenAI-compatible providers (config-driven from PROVIDERS)
           const cfg = PROVIDERS[provider];

@@ -37,7 +37,7 @@ export default {
     website: "https://chat.deepseek.com",
     notice: {
       signupUrl: "https://chat.deepseek.com",
-      info: "Requires USER_TOKEN from chat.deepseek.com local storage. Get it from F12 → Application → Local Storage → chat.deepseek.com → USER_TOKEN",
+      info: "Requires USER_TOKEN from chat.deepseek.com local storage. Get it from F12 → Application → Local Storage → chat.deepseek.com → USER_TOKEN. For best results, also copy cookies from F12 → Application → Cookies.",
     },
     kindNotice: {
       image: "Requires a DeepSeek account. Uses your DeepSeek web chat quota for API calls.",
@@ -45,7 +45,7 @@ export default {
   },
   category: "webCookie",
   authType: "cookie",
-  authHint: "Paste your DeepSeek USER_TOKEN from browser local storage",
+  authHint: "Paste your DeepSeek USER_TOKEN from browser local storage. Optionally add cookies (ds_session_id, aws-waf-token) in Advanced Settings.",
   transport: {
     baseUrl: "https://chat.deepseek.com",
     format: "openai",
@@ -73,5 +73,5 @@ export default {
   ],
   passthroughModels: true,
   serviceKinds: ["llm"],
-  hasProviderSpecificData: false,
+  hasProviderSpecificData: true,
 };

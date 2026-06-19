@@ -162,6 +162,17 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       headers["Authorization"] = `Bearer ${credentials.apiKey}`;
     }
 
+    // Forward browser cookies from providerSpecificData
+    const cookies = credentials?.providerSpecificData?.cookies;
+    if (cookies) {
+      headers["Cookie"] = cookies;
+    }
+
+    // Forward fingerprint headers if provided
+    const psd = credentials?.providerSpecificData || {};
+    if (psd.hifDliq) headers["x-hif-dliq"] = psd.hifDliq;
+    if (psd.hifLeim) headers["x-hif-leim"] = psd.hifLeim;
+
     return headers;
   }
 
