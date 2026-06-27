@@ -1,24 +1,25 @@
 export default {
-  id: "github",
-  priority: 40,
-  alias: "gh",
-  uiAlias: "gh",
-  display: {
-    name: "GitHub Copilot",
-    icon: "code",
-    color: "#333333",
-    website: "https://github.com/features/copilot",
-    notice: {
-      signupUrl: "https://github.com/features/copilot",
+  "id": "github",
+  "priority": 40,
+  "alias": "gh",
+  "uiAlias": "gh",
+  "display": {
+    "name": "GitHub Copilot",
+    "icon": "code",
+    "color": "#333333",
+    "textIcon": "GH",
+    "website": "https://github.com/features/copilot",
+    "notice": {
+      "signupUrl": "https://github.com/features/copilot"
     },
-    deprecated: true,
-    deprecationNotice: "RISK_NOTICE",
+    "deprecated": true,
+    "deprecationNotice": "RISK_NOTICE"
   },
-  category: "oauth",
-  transport: {
-    baseUrl: "https://api.githubcopilot.com/chat/completions",
-    responsesUrl: "https://api.githubcopilot.com/responses",
-    headers: {
+  "category": "oauth",
+  "transport": {
+    "baseUrl": "https://api.githubcopilot.com/chat/completions",
+    "responsesUrl": "https://api.githubcopilot.com/responses",
+    "headers": {
       "copilot-integration-id": "vscode-chat",
       "editor-version": "vscode/1.110.0",
       "editor-plugin-version": "copilot-chat/0.38.0",
@@ -27,18 +28,18 @@ export default {
       "x-github-api-version": "2025-04-01",
       "x-vscode-user-agent-library-version": "electron-fetch",
       "X-Initiator": "user",
-      Accept: "application/json",
-      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "Content-Type": "application/json"
     },
-    copilot: {
-      vscodeVersion: "1.110.0",
-      chatVersion: "0.38.0",
-      userAgent: "GitHubCopilotChat/0.38.0",
-      apiVersion: "2025-04-01",
+    "copilot": {
+      "vscodeVersion": "1.110.0",
+      "chatVersion": "0.38.0",
+      "userAgent": "GitHubCopilotChat/0.38.0",
+      "apiVersion": "2025-04-01"
     },
-    usage: {
-      url: "https://api.github.com/copilot_internal/user",
-    },
+    "usage": {
+      "url": "https://api.github.com/copilot_internal/user"
+    }
   },
   models: [
     { id: "gpt-5.2", name: "GPT-5.2" },
@@ -61,22 +62,29 @@ export default {
     { id: "text-embedding-3-small", name: "Text Embedding 3 Small (GitHub)", kind: "embedding" },
     { id: "text-embedding-3-large", name: "Text Embedding 3 Large (GitHub)", kind: "embedding" },
   ],
-  serviceKinds: ["llm","embedding"],
-  embeddingConfig: { baseUrl: "https://models.github.ai/inference/embeddings", authType: "apikey", authHeader: "bearer" },
-  oauth: {
-    clientId: "Iv1.b507a08c87ecfe98",
-    authorizeUrl: "https://github.com/login/oauth/authorize",
-    deviceCodeUrl: "https://github.com/login/device/code",
-    tokenUrl: "https://github.com/login/oauth/access_token",
-    userInfoUrl: "https://api.github.com/user",
-    scopes: "read:user",
-    apiVersion: "2022-11-28",
-    copilotTokenUrl: "https://api.github.com/copilot_internal/v2/token",
-    userAgent: "GitHubCopilotChat/0.26.7",
-    editorVersion: "vscode/1.85.0",
-    editorPluginVersion: "copilot-chat/0.26.7",
+  "serviceKinds": [
+    "llm",
+    "embedding"
+  ],
+  "embeddingConfig": {
+    "baseUrl": "https://models.github.ai/inference/embeddings",
+    "authType": "apikey",
+    "authHeader": "bearer"
   },
-  features: {
-    usage: true,
+  "oauth": {
+    "clientId": "Iv1.b507a08c87ecfe98",
+    "authorizeUrl": "https://github.com/login/oauth/authorize",
+    "deviceCodeUrl": "https://github.com/login/device/code",
+    "tokenUrl": "https://github.com/login/oauth/access_token",
+    "userInfoUrl": "https://api.github.com/user",
+    "scopes": "read:user",
+    "apiVersion": "2022-11-28",
+    "copilotTokenUrl": "https://api.github.com/copilot_internal/v2/token",
+    "userAgent": "GitHubCopilotChat/0.26.7",
+    "editorVersion": "vscode/1.85.0",
+    "editorPluginVersion": "copilot-chat/0.26.7"
   },
+  "features": {
+    "usage": true
+  }
 };

@@ -206,7 +206,12 @@ export default function ProvidersPage() {
       ? getRelativeTime(latestError.lastErrorAt)
       : null;
 
-    return { connected, error, total, errorCode, errorTime, allDisabled };
+    // Get model count from provider info
+    const providerInfo = OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId] || WEB_COOKIE_PROVIDERS[providerId];
+    const totalModels = providerInfo?.models?.length || 0;
+    const availableModels = providerInfo?.models?.filter(m => !m.isDisabled).length || 0;
+
+    return { connected, error, total, errorCode, errorTime, allDisabled, totalModels, availableModels };
   };
 
   // Toggle all connections for a provider on/off. authType may be a single
@@ -549,7 +554,8 @@ export default function ProvidersPage() {
       )}
 
       {/* Web Cookie Providers — use browser subscription cookie instead of API key */}
-      {/* <div className="flex flex-col gap-4">
+      {Object.keys(WEB_COOKIE_PROVIDERS).length > 0 && (
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             Web Cookie Providers{" "}
@@ -561,13 +567,14 @@ export default function ProvidersPage() {
               key={key}
               providerId={key}
               provider={info}
-              stats={getProviderStats(key, "apikey")}
-              authType="apikey"
-              onToggle={(active) => handleToggleProvider(key, "apikey", active)}
+              stats={getProviderStats(key, "cookie")}
+              authType="cookie"
+              onToggle={(active) => handleToggleProvider(key, "cookie", active)}
             />
           ))}
         </div>
-      </div> */}
+      </div>
+      )}
 
       <AddCompatibleModal
         variant="openai"
@@ -620,7 +627,7 @@ export default function ProvidersPage() {
 }
 
 function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
-  const { connected, error, errorCode, errorTime, allDisabled } = stats;
+  const { connected, error, errorCode, errorTime, allDisabled, totalModels, availableModels } = stats;
   const isNoAuth = !!provider.noAuth;
 
   const dotColors = {
@@ -634,6 +641,51 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
     oauth: "OAuth",
     apikey: "API Key",
     compatible: "Compatible",
+  };
+
+  const getModelCountDisplay = () => {
+    if (!totalModels) return null;
+    const unavailableCount = totalModels - availableModels;
+    return (
+      <div className="flex items-center gap-1.5 mt-1 text-xs">
+        <span className="text-text-muted">
+          {availableModels}/{totalModels} models
+        </span>
+        {unavailableCount > 0 && (
+          <Badge variant="error" size="xs">
+            {unavailableCount} unavailable
+          </Badge>
+        )}
+      </div>
+    );
+  };
+
+  const getCapabilityBadges = () => {
+    if (!provider.models) return null;
+    const allCapabilities = provider.models
+      .flatMap(m => m.capabilities || [])
+      .filter((cap, index, self) => self.indexOf(cap) === index)
+      .slice(0, 3);
+    
+    if (allCapabilities.length === 0) return null;
+    
+    return (
+      <div className="flex items-center gap-1 mt-1">
+        {allCapabilities.map(cap => {
+          const capMeta = {
+            vision: { icon: "visibility", color: "text-blue-500" },
+            reasoning: { icon: "neurology", color: "text-amber-500" },
+          }[cap];
+          if (!capMeta) return null;
+          return (
+            <Badge key={cap} variant="default" size="xs" className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[10px]">{capMeta.icon}</span>
+              {cap.charAt(0).toUpperCase() + cap.slice(1)}
+            </Badge>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -683,6 +735,8 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
                     )}
                   </>
                 )}
+                {getModelCountDisplay()}
+                {getCapabilityBadges()}
               </div>
             </div>
           </div>
@@ -718,12 +772,23 @@ ProviderCard.propTypes = {
     name: PropTypes.string.isRequired,
     color: PropTypes.string,
     textIcon: PropTypes.string,
+    models: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string,
+        capabilities: PropTypes.array,
+        isFree: PropTypes.bool,
+        isDisabled: PropTypes.bool,
+      })
+    ),
   }).isRequired,
   stats: PropTypes.shape({
     connected: PropTypes.number,
     error: PropTypes.number,
     errorCode: PropTypes.string,
     errorTime: PropTypes.string,
+    totalModels: PropTypes.number,
+    availableModels: PropTypes.number,
   }).isRequired,
   authType: PropTypes.string,
   onToggle: PropTypes.func,
@@ -736,7 +801,7 @@ function ApiKeyProviderCard({
   authType,
   onToggle,
 }) {
-  const { connected, error, errorCode, errorTime, allDisabled } = stats;
+  const { connected, error, errorCode, errorTime, allDisabled, totalModels, availableModels } = stats;
   const isCompatible = providerId.startsWith(OPENAI_COMPATIBLE_PREFIX);
   const isAnthropicCompatible = providerId.startsWith(
     ANTHROPIC_COMPATIBLE_PREFIX,
@@ -747,12 +812,14 @@ function ApiKeyProviderCard({
     oauth: "bg-blue-500",
     apikey: "bg-amber-500",
     compatible: "bg-orange-500",
+    cookie: "bg-purple-500",
   };
   const dotLabels = {
     free: "Free",
     oauth: "OAuth",
     apikey: "API Key",
     compatible: "Compatible",
+    cookie: "Cookie",
   };
 
   const getIconPath = () => {
@@ -762,6 +829,51 @@ function ApiKeyProviderCard({
         : "/providers/oai-cc.png";
     if (isAnthropicCompatible) return "/providers/anthropic-m.png";
     return `/providers/${provider.id}.png`;
+  };
+
+  const getModelCountDisplay = () => {
+    if (!totalModels) return null;
+    const unavailableCount = totalModels - availableModels;
+    return (
+      <div className="flex items-center gap-1.5 mt-1 text-xs">
+        <span className="text-text-muted">
+          {availableModels}/{totalModels} models
+        </span>
+        {unavailableCount > 0 && (
+          <Badge variant="error" size="xs">
+            {unavailableCount} unavailable
+          </Badge>
+        )}
+      </div>
+    );
+  };
+
+  const getCapabilityBadges = () => {
+    if (!provider.models) return null;
+    const allCapabilities = provider.models
+      .flatMap(m => m.capabilities || [])
+      .filter((cap, index, self) => self.indexOf(cap) === index)
+      .slice(0, 3);
+    
+    if (allCapabilities.length === 0) return null;
+    
+    return (
+      <div className="flex items-center gap-1 mt-1">
+        {allCapabilities.map(cap => {
+          const capMeta = {
+            vision: { icon: "visibility", color: "text-blue-500" },
+            reasoning: { icon: "neurology", color: "text-amber-500" },
+          }[cap];
+          if (!capMeta) return null;
+          return (
+            <Badge key={cap} variant="default" size="xs" className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[10px]">{capMeta.icon}</span>
+              {cap.charAt(0).toUpperCase() + cap.slice(1)}
+            </Badge>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -821,6 +933,8 @@ function ApiKeyProviderCard({
                     )}
                   </>
                 )}
+                {getModelCountDisplay()}
+                {getCapabilityBadges()}
               </div>
             </div>
           </div>
@@ -857,12 +971,23 @@ ApiKeyProviderCard.propTypes = {
     color: PropTypes.string,
     textIcon: PropTypes.string,
     apiType: PropTypes.string,
+    models: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string,
+        capabilities: PropTypes.array,
+        isFree: PropTypes.bool,
+        isDisabled: PropTypes.bool,
+      })
+    ),
   }).isRequired,
   stats: PropTypes.shape({
     connected: PropTypes.number,
     error: PropTypes.number,
     errorCode: PropTypes.string,
     errorTime: PropTypes.string,
+    totalModels: PropTypes.number,
+    availableModels: PropTypes.number,
   }).isRequired,
   authType: PropTypes.string,
   onToggle: PropTypes.func,

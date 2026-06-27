@@ -1,19 +1,19 @@
 import { CLAUDE_API_HEADERS, KIMI_CODING_BASE_URL } from "../shared.js";
 
 export default {
-  id: "kimi-coding",
-  hidden: true,
-  priority: 120,
-  alias: "kmc",
-  display: {
-    name: "Kimi Coding",
-    icon: "psychology",
-    color: "#1E40AF",
-    textIcon: "KC",
-    website: "https://kimi.moonshot.cn",
-    notice: {
-      signupUrl: "https://kimi.moonshot.cn",
-    },
+  "id": "kimi-coding",
+  "hidden": true,
+  "priority": 120,
+  "alias": "kmc",
+  "display": {
+    "name": "Kimi Coding",
+    "icon": "psychology",
+    "color": "#1E40AF",
+    "textIcon": "KC",
+    "website": "https://kimi.moonshot.cn",
+    "notice": {
+      "signupUrl": "https://kimi.moonshot.cn"
+    }
   },
   category: "oauth",
   transport: {
@@ -31,6 +31,11 @@ export default {
       hooks: [
         "kimiHeaders",
       ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
     },
   },
   // Multi-endpoint: pick the transport matching client sourceFormat to skip translation.
@@ -54,12 +59,12 @@ export default {
     { id: "kimi-k2.5-thinking", name: "Kimi K2.5 Thinking" },
     { id: "kimi-latest", name: "Kimi Latest" },
   ],
-  oauth: {
-    deviceCodeUrl: "https://auth.kimi.com/api/oauth/device_authorization",
-    tokenUrl: "https://auth.kimi.com/api/oauth/token",
-    refreshLeadMs: 300000,
+  "oauth": {
+    "deviceCodeUrl": "https://auth.kimi.com/api/oauth/device_authorization",
+    "tokenUrl": "https://auth.kimi.com/api/oauth/token",
+    "refreshLeadMs": 300000
   },
-  features: {
-    usage: true,
-  },
+  "features": {
+    "usage": true
+  }
 };

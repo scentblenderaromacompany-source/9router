@@ -40,6 +40,20 @@ import p37 from "./glm.js";
 import p38 from "./google-pse.js";
 import p39 from "./google-tts.js";
 import p40 from "./grok-web.js";
+import p40a from "./chatgpt-web.js";
+import p40b from "./z-ai.js";
+import p40c from "./z-ai-web.js";
+import p40d from "./claude-web.js";
+import p40e from "./deepseek-web.js";
+import p40f from "./kimi-web.js";
+import p40g from "./minimax-web.js";
+import p40h from "./gemini-web.js";
+import p40i from "./duck-web.js";
+import p40j from "./pollinations.js";
+import p40k from "./krea.js";
+import p40l from "./jimeng.js";
+import p40m from "./flux.js";
+import p40n from "./grok-imagine.js";
 import p41 from "./groq.js";
 import p42 from "./huggingface.js";
 import p43 from "./hyperbolic.js";
@@ -137,6 +151,20 @@ export default [
   p38,
   p39,
   p40,
+  p40a,
+  p40b,
+  p40c,
+  p40d,
+  p40e,
+  p40f,
+  p40g,
+  p40h,
+  p40i,
+  p40j,
+  p40k,
+  p40l,
+  p40m,
+  p40n,
   p41,
   p42,
   p43,

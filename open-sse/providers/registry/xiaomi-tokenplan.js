@@ -1,35 +1,35 @@
 import { CLAUDE_API_HEADERS } from "../shared.js";
 
 export default {
-  id: "xiaomi-tokenplan",
-  priority: 300,
-  alias: "xiaomi-tokenplan",
-  aliases: [
-    "xmtp",
+  "id": "xiaomi-tokenplan",
+  "priority": 300,
+  "alias": "xiaomi-tokenplan",
+  "aliases": [
+    "xmtp"
   ],
-  uiAlias: "xmtp",
-  display: {
-    name: "Xiaomi MiMo (Token Plan)",
-    icon: "smart_toy",
-    color: "#FF6700",
-    textIcon: "XT",
-    website: "https://mimo.xiaomi.com",
-    notice: {
-      text: "Xiaomi MiMo Token Plan subscription (API key starts with tp-). Token Plan keys are cluster-specific — select the region matching your subscription.",
-      apiKeyUrl: "https://mimo.xiaomi.com",
-    },
+  "uiAlias": "xmtp",
+  "display": {
+    "name": "Xiaomi MiMo (Token Plan)",
+    "icon": "smart_toy",
+    "color": "#FF6700",
+    "textIcon": "XT",
+    "website": "https://mimo.xiaomi.com",
+    "notice": {
+      "text": "Xiaomi MiMo Token Plan subscription (API key starts with tp-). Token Plan keys are cluster-specific — select the region matching your subscription.",
+      "apiKeyUrl": "https://mimo.xiaomi.com"
+    }
   },
-  category: "apikey",
-  hasProviderSpecificData: true,
-  defaultRegion: "sgp",
-  transport: {
-    baseUrl: "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
-    regions: {
-      sgp: "https://token-plan-sgp.xiaomimimo.com/v1",
-      cn: "https://token-plan-cn.xiaomimimo.com/v1",
-      ams: "https://token-plan-ams.xiaomimimo.com/v1",
+  "category": "apikey",
+  "hasProviderSpecificData": true,
+  "defaultRegion": "sgp",
+  "transport": {
+    "baseUrl": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
+    "regions": {
+      "sgp": "https://token-plan-sgp.xiaomimimo.com/v1",
+      "cn": "https://token-plan-cn.xiaomimimo.com/v1",
+      "ams": "https://token-plan-ams.xiaomimimo.com/v1"
     },
-    defaultRegion: "sgp",
+    "defaultRegion": "sgp"
   },
   // Multi-endpoint: pick the transport matching client sourceFormat to skip translation.
   // baseUrl omitted — region-dynamic, resolved in the executor's buildUrl.

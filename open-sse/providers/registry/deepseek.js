@@ -1,30 +1,30 @@
 import { CLAUDE_API_HEADERS } from "../shared.js";
 
 export default {
-  id: "deepseek",
-  priority: 110,
-  alias: "deepseek",
-  aliases: [
-    "ds",
+  "id": "deepseek",
+  "priority": 110,
+  "alias": "deepseek",
+  "aliases": [
+    "ds"
   ],
-  uiAlias: "ds",
-  display: {
-    name: "DeepSeek",
-    icon: "bolt",
-    color: "#4D6BFE",
-    textIcon: "DS",
-    website: "https://deepseek.com",
-    notice: {
-      apiKeyUrl: "https://platform.deepseek.com/api_keys",
-    },
+  "uiAlias": "ds",
+  "display": {
+    "name": "DeepSeek",
+    "icon": "bolt",
+    "color": "#4D6BFE",
+    "textIcon": "DS",
+    "website": "https://deepseek.com",
+    "notice": {
+      "apiKeyUrl": "https://platform.deepseek.com/api_keys"
+    }
   },
-  category: "apikey",
-  transport: {
-    baseUrl: "https://api.deepseek.com/chat/completions",
-    validateUrl: "https://api.deepseek.com/models",
-    reasoningInject: {
-      scope: "all",
-    },
+  "category": "apikey",
+  "transport": {
+    "baseUrl": "https://api.deepseek.com/chat/completions",
+    "validateUrl": "https://api.deepseek.com/models",
+    "reasoningInject": {
+      "scope": "all"
+    }
   },
   // Multi-endpoint: pick the transport matching client sourceFormat to skip translation.
   transports: [

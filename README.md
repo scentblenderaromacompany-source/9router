@@ -1,110 +1,127 @@
-<div align="center">
-  <img src="./images/9router.png?1" alt="9Router Dashboard" width="800"/>
-  
-  # 9Router - FREE AI Router & Token Saver
-  
-  **Never stop coding. Save 20-40% tokens with RTK + auto-fallback to FREE & cheap AI models.**
-  
-  **Connect All AI Code Tools (Claude Code, Cursor, Antigravity, Copilot, Codex, Gemini, OpenCode, Cline, OpenClaw...) to 40+ AI Providers & 100+ Models.**
-  
-  [![npm](https://img.shields.io/npm/v/9router.svg)](https://www.npmjs.com/package/9router)
-  [![Downloads](https://img.shields.io/npm/dm/9router.svg)](https://www.npmjs.com/package/9router)
-  [![Docker Pulls](https://img.shields.io/docker/pulls/decolua/9router.svg?logo=docker&label=Docker%20pulls)](https://hub.docker.com/r/decolua/9router)
-  [![GHCR](https://img.shields.io/badge/GHCR-decolua%2F9router-blue?logo=github)](https://github.com/decolua/9router/pkgs/container/9router)
-  [![License](https://img.shields.io/npm/l/9router.svg)](https://github.com/decolua/9router/blob/main/LICENSE)
+# 9Router Model Fetching System
 
-  <a href="https://trendshift.io/repositories/22628" target="_blank"><img src="https://trendshift.io/api/badge/repositories/22628" alt="decolua%2F9router | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-  
-  [🚀 Quick Start](#-quick-start) • [💡 Features](#-key-features) • [📖 Setup](#-setup-guide) • [🌐 Website](https://9router.com)
+This document provides an overview of the Model Fetching System implemented in 9Router, a web dashboard for managing AI provider connections.
 
-  [🇻🇳 Tiếng Việt](./i18n/README.vi.md) • [🇨🇳 中文](./i18n/README.zh-CN.md) • [🇯🇵 日本語](./i18n/README.ja-JP.md) • [🇷🇺 Русский](./i18n/README.ru.md)
-</div>
+## Overview
 
----
+The Model Fetching System is a comprehensive solution for:
 
-## 🤔 Why 9Router?
+1. **Pulling model information** from various provider endpoints
+2. **Supporting different endpoint formats** (OpenAI-compatible, custom formats, etc.)
+3. **Creating a scheduled task or API endpoint** to periodically update model information
+4. **Handling rate limiting and error handling** for endpoint calls
+5. **Creating a cache system** for model information to reduce endpoint calls
 
-**Stop wasting money, tokens and hitting limits:**
+## System Architecture
 
-- ❌ Subscription quota expires unused every month
-- ❌ Rate limits stop you mid-coding
-- ❌ Tool outputs (git diff, grep, ls...) burn tokens fast
-- ❌ Expensive APIs ($20-50/month per provider)
-- ❌ Manual switching between providers
+The system is organized into the following components:
 
-**9Router solves this:**
+### Core Libraries
 
-- ✅ **RTK Token Saver** - Auto-compress tool_result content, save 20-40% tokens per request
-- ✅ **Maximize subscriptions** - Track quota, use every bit before reset
-- ✅ **Auto fallback** - Subscription → Cheap → Free, zero downtime
-- ✅ **Multi-account** - Round-robin between accounts per provider
-- ✅ **Universal** - Works with Claude Code, Codex, Cursor, Cline, any CLI tool
+- **`src/lib/modelFetchers/`** - Core model fetching libraries
+  - `baseModelFetcher.js` - Abstract base class
+  - `errorHandler.js` - Error handling and retry logic
+  - `rateLimiter.js` - Rate limiting implementation
+  - `cache.js` - Caching system
+  - `scheduler.js` - Scheduled task manager
 
----
+- **`src/lib/modelFetchers/providers/`** - Provider-specific fetchers
+  - `openai.js` - OpenAI-compatible providers
+  - `anthropic.js` - Anthropic-compatible providers
+  - `gemini.js` - Gemini providers
 
-## 🔄 How It Works
+### Configuration
 
-```
-┌─────────────┐
-│  Your CLI   │  (Claude Code, Codex, OpenClaw, Cursor, Cline...)
-│   Tool      │
-└──────┬──────┘
-       │ http://localhost:20128/v1
-       ↓
-┌─────────────────────────────────────────────┐
-│           9Router (Smart Router)            │
-│  • RTK Token Saver (cut tool_result tokens) │
-│  • Format translation (OpenAI ↔ Claude)     │
-│  • Quota tracking                           │
-│  • Auto token refresh                       │
-└──────┬──────────────────────────────────────┘
-       │
-       ├─→ [Tier 1: SUBSCRIPTION] Claude Code, Codex, GitHub Copilot
-       │   ↓ quota exhausted
-       ├─→ [Tier 2: CHEAP] GLM ($0.6/1M), MiniMax ($0.2/1M)
-       │   ↓ budget limit
-       └─→ [Tier 3: FREE] Kiro, OpenCode Free, Vertex ($300 credits)
+- **`src/shared/constants/`** - Configuration constants
+  - `modelFetcherConfig.js` - Model fetcher configuration
 
-Result: Never stop coding, minimal cost + 20-40% token savings via RTK
-```
+### API Endpoint
 
----
+- **`src/app/api/model-fetch/`** - REST API for manual model fetching
+  - `route.js` - API endpoint implementation
 
-## ⚡ Quick Start
+### CLI Script
 
-**1. Install globally:**
+- **`scripts/modelFetcher.js`** - Command-line interface for controlling the model fetcher
+
+### Documentation
+
+- **`src/lib/modelFetchers/README.md`** - System overview and usage instructions
+- **`src/lib/modelFetchers/SETUP.md`** - Setup and configuration guide
+- **`src/lib/modelFetchers/DESIGN.md`** - Design and architecture documentation
+
+### Examples
+
+- **`examples/modelFetcherExample.js`** - Example usage scripts
+- **`demoModelFetcher.js`** - Demonstration scripts
+
+### Tests
+
+- **`tests/unit/model-fetcher.test.js`** - Unit tests for model fetcher
+- **`tests/unit/model-fetcher-scheduler.test.js`** - Unit tests for scheduler
+- **`testModelFetcher.js`** - Integration test script
+
+## Key Features
+
+### 1. Comprehensive Provider Support
+
+The system supports a wide range of providers:
+
+- **OpenAI-Compatible:** OpenAI, Groq, Together, XAI, Mistral, Perplexity, Fireworks, Cerebras, Cohere, Nebius, SiliconFlow, Hyperbolic, Ollama, and more...
+- **Anthropic-Compatible:** Claude, Anthropic
+- **Gemini:** Google Gemini
+- **Custom Resolvers:** Kiro, Qoder, Gemini CLI, Ollama Local, and other custom providers
+
+### 2. Robust Error Handling
+
+- **Retry Logic:** Exponential backoff with up to 3 retries
+- **Error Classification:** Retryable vs non-retryable errors
+- **Graceful Degradation:** Continue with other providers if one fails
+- **Detailed Logging:** Comprehensive error reporting for debugging
+
+### 3. Rate Limiting
+
+- **Token Bucket Algorithm:** Prevents API abuse
+- **Configurable Limits:** Adjustable per provider
+- **Monitoring:** Tracks rate limit usage
+
+### 4. Efficient Caching
+
+- **TTL-based Caching:** Configurable cache duration
+- **In-Memory Storage:** Fast access times
+- **Automatic Expiration:** Prevents stale data
+
+### 5. Scheduled and Manual Fetching
+
+- **Scheduler:** Runs periodic fetch cycles (configurable interval)
+- **API Endpoint:** Manual triggering via REST API
+- **CLI Interface:** Command-line control
+
+## Usage Instructions
+
+### 1. Manual Fetching
+
+#### Using the CLI
 
 ```bash
-npm install -g 9router
-9router
+# Run a single fetch cycle
+node scripts/modelFetcher.js run
+
+# Start the scheduler (runs every hour by default)
+node scripts/modelFetcher.js start
+
+# Stop the scheduler
+node scripts/modelFetcher.js stop
+
+# Check scheduler status
+node scripts/modelFetcher.js status
 ```
 
-🎉 Dashboard opens at `http://localhost:20128`
-
-**2. Connect a FREE provider (no signup needed):**
-
-Dashboard → Providers → Connect **Kiro AI** (free Claude unlimited) or **OpenCode Free** (no auth) → Done!
-
-**3. Use in your CLI tool:**
-
-```
-Claude Code/Codex/OpenClaw/Cursor/Cline Settings:
-  Endpoint: http://localhost:20128/v1
-  API Key: [copy from dashboard]
-  Model: kr/claude-sonnet-4.5
-```
-
-**That's it!** Start coding with FREE AI models.
-
-**Alternative: run from source (this repository):**
-
-This repository package is private (`9router-app`), so source/Docker execution is the expected local development path.
+#### Using the API
 
 ```bash
-cp .env.example .env
-npm install
-PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
-```
+# Fetch all providers
+POST /api/model-fetch
 
 Production mode:
 
@@ -1312,70 +1329,192 @@ Authorization: Bearer your-api-key
 Content-Type: application/json
 
 {
-  "model": "cc/claude-opus-4-6",
-  "messages": [
-    {"role": "user", "content": "Write a function to..."}
-  ],
-  "stream": true
+  "providerId": "openai"
+}
+
+# Check scheduler status
+GET /api/model-fetch
+```
+
+### 2. Configuration
+
+Update model fetcher settings:
+
+```javascript
+// Update settings via API
+POST /api/settings
+{
+  "modelFetchInterval": 3600000,
+  "modelCacheMaxAge": 3600000
 }
 ```
 
-### List Models
+### 3. Provider Configuration
+
+Ensure your providers are configured in the 9Router dashboard:
+
+1. Navigate to Settings > Provider Connections
+2. Add your providers (OpenAI, Anthropic, Gemini, etc.)
+3. Configure API keys and base URLs
+
+## Quick Start
+
+### 1. Install Dependencies
 
 ```bash
-GET http://localhost:20128/v1/models
-Authorization: Bearer your-api-key
-
-→ Returns all models + combos in OpenAI format
+npm install
+# or
+bun install
 ```
 
-## 📧 Support
+### 2. Build the Application
 
-- **Website**: [9router.com](https://9router.com)
-- **GitHub**: [github.com/decolua/9router](https://github.com/decolua/9router)
-- **Issues**: [github.com/decolua/9router/issues](https://github.com/decolua/9router/issues)
+```bash
+npm run build
+# or
+npm run build:bun
+```
 
----
+### 3. Configure Providers
 
-## 👥 Contributors
+Add your providers in the 9Router dashboard:
 
-Thanks to all contributors who helped make 9Router better!
+1. Navigate to Settings > Provider Connections
+2. Add your providers (OpenAI, Anthropic, Gemini, etc.)
+3. Configure API keys and base URLs
 
-[![Contributors](https://contrib.rocks/image?repo=decolua/9router&max=150&columns=15&anon=1&v=20260309)](https://github.com/decolua/9router/graphs/contributors)
+### 4. Start the Model Fetcher
 
----
+```bash
+node scripts/modelFetcher.js start
+```
 
-## 📊 Star Chart
+### 5. Test the System
 
-[![Star Chart](https://starchart.cc/decolua/9router.svg?variant=adaptive)](https://starchart.cc/decolua/9router)
+Run the test scripts:
 
+```bash
+node testModelFetcher.js
+node examples/modelFetcherExample.js manual
+node examples/modelFetcherExample.js scheduler
+node examples/modelFetcherExample.js providers
+```
 
+### 6. Run Tests
 
-## 🔀 Forks
+Run unit tests:
 
-**[OmniRoute](https://github.com/diegosouzapw/OmniRoute)** — A full-featured TypeScript fork of 9Router. Adds 36+ providers, 4-tier auto-fallback, multi-modal APIs (images, embeddings, audio, TTS), circuit breaker, semantic cache, LLM evaluations, and a polished dashboard. 368+ unit tests. Available via npm and Docker.
+```bash
+npm test -- --testPathPattern=modelFetcher
+```
 
----
+## Testing
 
-## 🙏 Acknowledgments
+### 1. Unit Tests
 
-Built on the shoulders of giants:
+Run unit tests:
 
 - **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)** — original Go implementation that inspired this JavaScript port.
 - **[RTK](https://github.com/rtk-ai/rtk)** ![Stars](https://img.shields.io/github/stars/rtk-ai/rtk?style=flat&color=yellow) — Rust token-saver. 9Router ports its compression pipeline to JS → **−20-40% input tokens** on every request.
 - **[Caveman](https://github.com/JuliusBrussee/caveman)** ![Stars](https://img.shields.io/github/stars/JuliusBrussee/caveman?style=flat&color=yellow) by **[@JuliusBrussee](https://github.com/JuliusBrussee)** — viral *"why use many token when few token do trick"*. 9Router adapts its prompt → **−65% output tokens**.
 - **[Ponytail](https://github.com/DietrichGebert/ponytail)** ![Stars](https://img.shields.io/github/stars/DietrichGebert/ponytail?style=flat&color=yellow) by **[@DietrichGebert](https://github.com/DietrichGebert)** — *"lazy senior dev"* skill. 9Router injects its YAGNI-first ladder → **fewer tokens, less code, shorter diffs**.
 
-Huge thanks to these authors — without their work, 9Router's token-saving features wouldn't exist. ⭐ them on GitHub!
+### 2. Integration Tests
 
----
+Run integration tests:
 
-## 📄 License
+```bash
+npm test -- --testPathPattern=modelFetcher-scheduler
+```
 
-MIT License - see [LICENSE](LICENSE) for details.
+### 3. Manual Testing
 
----
+1. **Test manual fetching:** Run a single fetch cycle
+2. **Test scheduler:** Start and stop the scheduler
+3. **Test error handling:** Simulate API errors
+4. **Test caching:** Verify cache functionality
 
-<div align="center">
-  <sub>Built with ❤️ for developers who code 24/7</sub>
-</div>
+## Performance Considerations
+
+### 1. Concurrent Processing
+
+- Multiple providers fetched in parallel
+- Efficient resource utilization
+- Non-blocking operations
+
+### 2. Caching Benefits
+
+- Reduces endpoint calls
+- Minimizes database writes
+- Faster response times
+
+### 3. Rate Limit Management
+
+- Prevents API abuse
+- Ensures smooth request distribution
+- Avoids throttling
+
+## Security Considerations
+
+### 1. API Key Management
+
+- Encrypt API keys
+- Use environment variables
+- Rotate keys regularly
+
+### 2. Access Control
+
+- Validate provider access
+- Check authentication
+- Implement rate limiting
+
+## Future Enhancements
+
+### 1. Additional Provider Support
+
+- Add support for new provider types
+- Extend custom resolver framework
+
+### 2. Advanced Features
+
+- Model pricing updates
+- Capability detection
+- Model ranking and filtering
+
+### 3. Performance Improvements
+
+- Async/await optimization
+- Memory-efficient caching
+- Parallel processing
+
+## Migration Guide
+
+### From Previous System
+
+If migrating from the previous model fetching system:
+
+1. **Database Migration:** Custom models are automatically migrated
+2. **Configuration:** Update settings to match new configuration
+3. **Testing:** Run manual tests to verify functionality
+
+## Conclusion
+
+The Model Fetching System provides a robust, scalable solution for pulling model information from provider endpoints and updating the local model database. It implements comprehensive error handling, rate limiting, caching, and monitoring to ensure reliable operation. The system is designed to be extensible, allowing for easy addition of new provider types and features.
+
+## Support
+
+For support, please:
+
+1. **Check the documentation:** Read the README and SETUP guides
+2. **Run tests:** Verify the system works correctly
+3. **Report issues:** Create GitHub issues with detailed error information
+4. **Contact support:** Reach out for assistance with implementation
+
+## License
+
+This system is part of the 9Router project and is licensed under the same terms as the main application.
+
+## Copyright
+
+© 2024 9Router Team
+All rights reserved.

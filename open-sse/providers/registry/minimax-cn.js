@@ -1,18 +1,18 @@
 import { CLAUDE_API_HEADERS } from "../shared.js";
 
 export default {
-  id: "minimax-cn",
-  priority: 190,
-  alias: "minimax-cn",
-  display: {
-    name: "Minimax (China)",
-    icon: "memory",
-    color: "#DC2626",
-    textIcon: "MC",
-    website: "https://www.minimaxi.com",
-    notice: {
-      apiKeyUrl: "https://platform.minimaxi.com/user-center/basic-information/interface-key",
-    },
+  "id": "minimax-cn",
+  "priority": 190,
+  "alias": "minimax-cn",
+  "display": {
+    "name": "Minimax (China)",
+    "icon": "memory",
+    "color": "#DC2626",
+    "textIcon": "MC",
+    "website": "https://www.minimaxi.com",
+    "notice": {
+      "apiKeyUrl": "https://platform.minimaxi.com/user-center/basic-information/interface-key"
+    }
   },
   category: "apikey",
   transport: {
@@ -23,19 +23,35 @@ export default {
     quirks: {
       dropOutputConfig: true,
     },
-    reasoningInject: {
-      scope: "all",
+    "reasoningInject": {
+      "scope": "all"
     },
-    auth: {
-      combined: true,
-      header: "x-api-key",
-      scheme: "raw",
+    "auth": {
+      "combined": true,
+      "header": "x-api-key",
+      "scheme": "raw"
     },
-    usage: {
-      urls: [
+    "usage": {
+      "urls": [
         "https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains",
-        "https://api.minimaxi.com/v1/api/openplatform/coding_plan/remains",
+        "https://api.minimaxi.com/v1/api/openplatform/coding_plan/remains"
+      ]
+    }
+  },
+  "models": [
+    {
+      "id": "MiniMax-M3",
+      "name": "MiniMax M3",
+      "targetFormat": "claude",
+      "capabilities": [
+        "text",
+        "tools"
       ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
     },
   },
   // Multi-endpoint: pick the transport matching client sourceFormat to skip translation.
@@ -67,10 +83,18 @@ export default {
     { id: "speech-01-hd", name: "Speech 01 HD", kind: "tts" },
     { id: "speech-01-turbo", name: "Speech 01 Turbo", kind: "tts" },
   ],
-  serviceKinds: ["llm","tts"],
-  ttsConfig: { baseUrl: "https://api.minimaxi.com/v1/t2a_v2", authType: "apikey", authHeader: "bearer", format: "minimax-tts" },
-  features: {
-    usage: true,
-    usageApikey: true,
+  "serviceKinds": [
+    "llm",
+    "tts"
+  ],
+  "ttsConfig": {
+    "baseUrl": "https://api.minimaxi.com/v1/t2a_v2",
+    "authType": "apikey",
+    "authHeader": "bearer",
+    "format": "minimax-tts"
   },
+  "features": {
+    "usage": true,
+    "usageApikey": true
+  }
 };

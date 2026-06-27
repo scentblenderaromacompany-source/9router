@@ -1,20 +1,40 @@
 export default {
-  id: "opencode-go",
-  priority: 210,
-  alias: "opencode-go",
-  aliases: [
-    "ocg",
+  "id": "opencode-go",
+  "priority": 210,
+  "alias": "opencode-go",
+  "aliases": [
+    "ocg"
   ],
-  uiAlias: "ocg",
-  display: {
-    name: "OpenCode Go",
-    icon: "terminal",
-    color: "#E87040",
-    textIcon: "OC",
-    website: "https://opencode.ai/auth",
-    notice: {
-      text: "OpenCode Go subscription: $5/mo (then  0/mo). Access to Kimi, GLM, Qwen, MiMo, MiniMax models.",
-      apiKeyUrl: "https://opencode.ai/auth",
+  "uiAlias": "ocg",
+  "display": {
+    "name": "OpenCode Go",
+    "icon": "terminal",
+    "color": "#E87040",
+    "textIcon": "OC",
+    "website": "https://opencode.ai/auth",
+    "notice": {
+      "text": "OpenCode Go subscription: $5/mo (then  0/mo). Access to Kimi, GLM, Qwen, MiMo, MiniMax models.",
+      "apiKeyUrl": "https://opencode.ai/auth"
+    }
+  },
+  "category": "apikey",
+  "transport": {
+    "baseUrl": "https://opencode.ai/zen/go/v1/chat/completions",
+    "headers": {}
+  },
+  "models": [
+    {
+      "id": "kimi-k2.6",
+      "name": "Kimi K2.6",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
     },
   },
   category: "apikey",

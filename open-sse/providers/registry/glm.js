@@ -1,18 +1,18 @@
 import { CLAUDE_API_HEADERS } from "../shared.js";
 
 export default {
-  id: "glm",
-  priority: 140,
-  alias: "glm",
-  display: {
-    name: "GLM Coding",
-    icon: "code",
-    color: "#2563EB",
-    textIcon: "GL",
-    website: "https://open.bigmodel.cn",
-    notice: {
-      apiKeyUrl: "https://open.bigmodel.cn/usercenter/apikeys",
-    },
+  "id": "glm",
+  "priority": 140,
+  "alias": "glm",
+  "display": {
+    "name": "GLM Coding",
+    "icon": "code",
+    "color": "#2563EB",
+    "textIcon": "GL",
+    "website": "https://open.bigmodel.cn",
+    "notice": {
+      "apiKeyUrl": "https://open.bigmodel.cn/usercenter/apikeys"
+    }
   },
   category: "apikey",
   transport: {
@@ -28,6 +28,9 @@ export default {
     usage: {
       url: "https://api.z.ai/api/monitor/usage/quota/limit",
     },
+    "usage": {
+      "url": "https://api.z.ai/api/monitor/usage/quota/limit"
+    }
   },
   // Multi-endpoint: pick the transport matching client sourceFormat to skip translation.
   transports: [
@@ -51,8 +54,8 @@ export default {
     { id: "glm-4.7", name: "GLM 4.7" },
     { id: "glm-4.6v", name: "GLM 4.6V (Vision)" },
   ],
-  features: {
-    usage: true,
-    usageApikey: true,
-  },
+  "features": {
+    "usage": true,
+    "usageApikey": true
+  }
 };

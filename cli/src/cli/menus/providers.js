@@ -1,6 +1,6 @@
 const api = require("../api/client");
 const { prompt, confirm, pause } = require("../utils/input");
-const { clearScreen, showStatus, showHeader } = require("../utils/display");
+const { clearScreen, showStatus, showHeader, showTable } = require("../utils/display");
 const { formatDate, getRelativeTime } = require("../utils/format");
 const { showMenuWithBack } = require("../utils/menuHelper");
 const { copyToClipboard } = require("../utils/clipboard");
@@ -10,7 +10,9 @@ const COLORS = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
   cyan: "\x1b[36m",
-  dim: "\x1b[2m"
+  dim: "\x1b[2m",
+  yellow: "\x1b[33m",
+  green: "\x1b[32m"
 };
 
 // Provider models - static config (synced from open-sse/config/providerModels.js)
@@ -234,7 +236,26 @@ async function showProvidersMenu(breadcrumb = []) {
         nodeCount: nodes.length,
       };
     },
-    items: providerItems
+    items: [
+      ...providerItems,
+      {
+        label: "📋 List Provider Models",
+        action: async () => {
+          const { select } = require("../utils/input");
+          const providerOptions = Object.values(ALL_PROVIDERS).map((p, i) => {
+            const alias = p.alias || p.id;
+            const models = PROVIDER_MODELS[alias] || [];
+            return `${i + 1}. ${p.name} (${alias}) - ${models.length} models`;
+          });
+          const selected = await select("Select provider to view models:", providerOptions);
+          if (selected !== -1) {
+            const selectedProvider = Object.values(ALL_PROVIDERS)[selected];
+            await showProviderModels(selectedProvider.id, [...breadcrumb, "Models"]);
+          }
+          return true;
+        }
+      }
+    ]
   });
 }
 
@@ -264,6 +285,104 @@ function buildProviderHeader(providerId) {
   }
   
   return lines.join("\n");
+}
+
+/**
+ * Show detailed model information for a provider
+ * @param {string} providerId - Provider ID
+ * @param {number} port - Server port
+ */
+async function showProviderModels(providerId, port) {
+  clearScreen();
+  const provider = ALL_PROVIDERS[providerId];
+  
+  showHeader("📋 Provider Models", `Provider: ${provider.name} > Available Models`);
+  
+  // Get models from static config
+  const models = PROVIDER_MODELS[provider.alias || providerId] || [];
+  
+  if (models.length === 0) {
+    console.log(`\n${COLORS.dim}No models configured for this provider.${COLORS.reset}\n`);
+    await pause();
+    return;
+  }
+  
+  // Display models in table format
+  const headers = ["Model ID", "Provider", "Description"];
+  const rows = models.map(model => [
+    model.id,
+    provider.alias || providerId,
+    getModelDescription(model.id)
+  ]);
+  
+  showTable(headers, rows);
+  
+  console.log(`\n${COLORS.dim}Total models: ${models.length}${COLORS.reset}`);
+  await pause();
+}
+
+/**
+ * Get model description based on model ID
+ * @param {string} modelId - Model ID
+ * @returns {string} Model description
+ */
+function getModelDescription(modelId) {
+  const descriptions = {
+    "claude-opus-4-5-20251101": "Claude 4 Opus - Most capable model for complex reasoning",
+    "claude-sonnet-4-5-20250929": "Claude 4 Sonnet - Balanced performance and speed",
+    "claude-haiku-4-5-20251001": "Claude 4 Haiku - Fast and efficient for simple tasks",
+    "gpt-5.2-codex": "GPT-5.2 Codex - Optimized for code generation and understanding",
+    "gpt-5.2": "GPT-5.2 - Latest GPT model with improved capabilities",
+    "gpt-5.1-codex-max": "GPT-5.1 Codex Max - Advanced code generation",
+    "gpt-5.1-codex": "GPT-5.1 Codex - Code-focused model",
+    "gpt-5.1-codex-mini": "GPT-5.1 Codex Mini - Lightweight code model",
+    "gpt-5.1": "GPT-5.1 - Improved version of GPT-5",
+    "gpt-5-codex": "GPT-5 Codex - Code generation model",
+    "gpt-5-codex-mini": "GPT-5 Codex Mini - Lightweight code model",
+    "gemini-3-flash-preview": "Gemini 3 Flash Preview - Fast and efficient",
+    "gemini-3-pro-preview": "Gemini 3 Pro Preview - Balanced performance",
+    "gemini-2.5-pro": "Gemini 2.5 Pro - Advanced reasoning capabilities",
+    "gemini-2.5-flash": "Gemini 2.5 Flash - Fast and efficient",
+    "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite - Lightweight version",
+    "qwen3-coder-plus": "Qwen3 Coder Plus - Advanced coding model",
+    "qwen3-coder-flash": "Qwen3 Coder Flash - Fast coding model",
+    "vision-model": "Vision model for image analysis",
+    "kimi-k2": "Kimi K2 - Advanced reasoning model",
+    "kimi-k2-thinking": "Kimi K2 Thinking - Enhanced reasoning model",
+    "deepseek-r1": "DeepSeek R1 - Reasoning-focused model",
+    "deepseek-v3.2-chat": "DeepSeek V3.2 Chat - Conversational model",
+    "deepseek-v3.2-reasoner": "DeepSeek V3.2 Reasoner - Enhanced reasoning",
+    "minimax-m2": "Minimax M2 - Balanced model",
+    "glm-4.7": "GLM-4.7 - Advanced language model",
+    "gemini-3-flash-agent": "Gemini 3 Flash Agent - Agent-optimized model",
+    "gemini-3.5-flash-low": "Gemini 3.5 Flash Low - Resource-efficient",
+    "gemini-3.5-flash-extra-low": "Gemini 3.5 Flash Extra Low - Ultra-lightweight",
+    "gemini-pro-agent": "Gemini Pro Agent - Professional agent model",
+    "gemini-3.1-pro-low": "Gemini 3.1 Pro Low - Optimized version",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6 - Latest Sonnet model",
+    "claude-opus-4-6-thinking": "Claude Opus 4.6 Thinking - Enhanced reasoning",
+    "gpt-oss-120b-medium": "GPT OSS 120B Medium - Open source model",
+    "gemini-3-flash": "Gemini 3 Flash - Fast and efficient",
+    "gpt-5": "GPT-5 - Latest GPT model",
+    "gpt-5-mini": "GPT-5 Mini - Lightweight GPT model",
+    "claude-sonnet-4.5": "Claude Sonnet 4.5 - Advanced Sonnet model",
+    "claude-haiku-4.5": "Claude Haiku 4.5 - Fast Haiku model",
+    "gpt-4o": "GPT-4o - Multimodal model",
+    "gpt-4o-mini": "GPT-4o Mini - Lightweight multimodal model",
+    "gpt-4-turbo": "GPT-4 Turbo - Fast version of GPT-4",
+    "o1": "O1 - Advanced reasoning model",
+    "o1-mini": "O1 Mini - Lightweight reasoning model",
+    "claude-sonnet-4-20250514": "Claude Sonnet 4 - Latest Sonnet model",
+    "claude-opus-4-20250514": "Claude Opus 4 - Latest Opus model",
+    "claude-3-5-sonnet-20241022": "Claude 3.5 Sonnet - Previous generation Sonnet",
+    "gemini-3-pro": "Gemini 3 Pro - Professional model",
+    "grok-code-fast-1": "Grok Code Fast 1 - Fast code generation",
+    "kimi-latest": "Kimi Latest - Updated Kimi model",
+    "MiniMax-M2.1": "MiniMax M2.1 - Advanced model",
+    "auto": "Auto - Automatic model selection"
+  };
+  
+  return descriptions[modelId] || "Model description not available";
 }
 
 /**
@@ -843,4 +962,7 @@ async function handleEditCustomNode(node) {
   await pause();
 }
 
-module.exports = { showProvidersMenu };
+module.exports = { 
+  showProvidersMenu, 
+  showProviderModels 
+};

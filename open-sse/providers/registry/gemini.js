@@ -1,37 +1,37 @@
 import { GOOGLE_OAUTH_CLIENT } from "../shared.js";
 
 export default {
-  id: "gemini",
-  priority: 50,
-  hasFree: true,
-  alias: "gemini",
-  display: {
-    name: "Gemini",
-    icon: "diamond",
-    color: "#4285F4",
-    textIcon: "GE",
-    website: "https://ai.google.dev",
-    notice: {
-      apiKeyUrl: "https://aistudio.google.com/app/apikey",
-    },
+  "id": "gemini",
+  "priority": 50,
+  "hasFree": true,
+  "alias": "gemini",
+  "display": {
+    "name": "Gemini",
+    "icon": "diamond",
+    "color": "#4285F4",
+    "textIcon": "GE",
+    "website": "https://ai.google.dev",
+    "notice": {
+      "apiKeyUrl": "https://aistudio.google.com/app/apikey"
+    }
   },
-  category: "freeTier",
-  mediaPriority: 1,
-  transport: {
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/models",
-    format: "gemini",
-    clientId: "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
-    clientSecret: "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",
-    auth: {
-      apiKey: {
-        header: "x-goog-api-key",
-        scheme: "raw",
+  "category": "freeTier",
+  "mediaPriority": 1,
+  "transport": {
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/models",
+    "format": "gemini",
+    "clientId": "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
+    "clientSecret": "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",
+    "auth": {
+      "apiKey": {
+        "header": "x-goog-api-key",
+        "scheme": "raw"
       },
-      oauth: {
-        header: "Authorization",
-        scheme: "bearer",
-      },
-    },
+      "oauth": {
+        "header": "Authorization",
+        "scheme": "bearer"
+      }
+    }
   },
   models: [
     { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview" },
@@ -57,25 +57,39 @@ export default {
     { id: "gemini-2.5-pro-preview-tts", name: "Gemini 2.5 Pro TTS", kind: "tts" },
     { id: "embedding-001", name: "Embedding 001", dimensions: 768, kind: "embedding" },
   ],
-  serviceKinds: ["llm","embedding","image","imageToText","webSearch","tts","stt"],
-  ttsConfig: {
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/models",
-    authType: "apikey",
-    authHeader: "key",
-    format: "gemini-tts",
+  "serviceKinds": [
+    "llm",
+    "embedding",
+    "image",
+    "imageToText",
+    "webSearch",
+    "tts",
+    "stt"
+  ],
+  "ttsConfig": {
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/models",
+    "authType": "apikey",
+    "authHeader": "key",
+    "format": "gemini-tts"
   },
-  sttConfig: {
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/models",
-    authType: "apikey",
-    authHeader: "key",
-    format: "gemini-stt",
+  "sttConfig": {
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/models",
+    "authType": "apikey",
+    "authHeader": "key",
+    "format": "gemini-stt"
   },
-  embeddingConfig: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/models", authType: "apikey", authHeader: "key" },
-  imageConfig: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/models" },
-  searchViaChat: {
-    defaultModel: "gemini-2.5-flash",
-    endpoint: "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-    pricingUrl: "https://ai.google.dev/pricing",
-    freeTier: "Free tier: 15 RPM, 1M tokens/day on gemini-2.5-flash via AI Studio.",
+  "embeddingConfig": {
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/models",
+    "authType": "apikey",
+    "authHeader": "key"
   },
+  "imageConfig": {
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/models"
+  },
+  "searchViaChat": {
+    "defaultModel": "gemini-2.5-flash",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "pricingUrl": "https://ai.google.dev/pricing",
+    "freeTier": "Free tier: 15 RPM, 1M tokens/day on gemini-2.5-flash via AI Studio."
+  }
 };

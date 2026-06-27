@@ -128,6 +128,271 @@ export const CLI_TOOLS = {
     description: "OpenCode AI Terminal Assistant",
     configType: "custom",
   },
+  chat2api: {
+    id: "chat2api",
+    name: "Chat2API",
+    icon: "terminal",
+    color: "#0EA5E9",
+    description: "Chat2API proxy integration — native provider or via external proxy",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "9Router now includes native ChatGPT Web support. Use the built-in 'chatgpt-web' provider for direct access with tool parsing.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Option A: Use Native ChatGPT Web Provider (Recommended)",
+        desc: "Go to Providers → Add ChatGPT Web and configure with your ChatGPT access token.",
+      },
+      {
+        step: 2,
+        title: "Option B: Use Chat2API Proxy (External)",
+        desc: "If you prefer an external proxy, install Chat2API from github.com/Z7ANN/chat2api and configure as OpenAI-compatible.",
+      },
+      {
+        step: 3,
+        title: "Select ChatGPT Models",
+        desc: "Use models like gpt-4o, gpt-4-turbo, gpt-3.5-turbo with full tool parsing support.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `// Native provider config (recommended):
+{
+  "provider": "chatgpt-web",
+  "model": "gpt-4o",
+  "accessToken": "<your-chatgpt-access-token>"
+}
+
+// Or external Chat2API proxy:
+{
+  "name": "Chat2API",
+  "type": "openai-compatible",
+  "prefix": "chat2api",
+  "apiType": "chat",
+  "baseUrl": "http://localhost:8700/v1"
+}`,
+    },
+  },
+  chatgpt_web: {
+    id: "chatgpt-web",
+    name: "ChatGPT Web (Native)",
+    image: "/providers/openai.png",
+    color: "#10A37F",
+    description: "Native ChatGPT Web UI integration with full tool parsing support",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your ChatGPT account access token to access ChatGPT models directly with full function calling support.",
+      },
+      {
+        type: "info",
+        text: "Requires your ChatGPT Plus/Pro subscription. Tool parsing works natively without external proxies.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your Access Token",
+        desc: "Visit https://chatgpt.com/api/auth/session while logged in and copy the 'accessToken' value.",
+      },
+      {
+        step: 2,
+        title: "Add ChatGPT Web Provider",
+        desc: "Go to Providers → Add New → Select 'ChatGPT Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste Access Token",
+        desc: "Paste your access token in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Models",
+        desc: "Choose from gpt-4o, gpt-4-turbo, gpt-3.5-turbo, or add custom ChatGPT models.",
+      },
+      {
+        step: 5,
+        title: "Enable Tool Parsing",
+        desc: "Tool parsing and function calling work automatically on all requests.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "chatgpt-web",
+  "models": [
+    "gpt-4o",
+    "gpt-4-turbo",
+    "gpt-3.5-turbo"
+  ],
+  "accessToken": "<your-chatgpt-access-token>",
+  "supportedCapabilities": [
+    "text",
+    "vision",
+    "tools",
+    "image-generation"
+  ]
+}`,
+    },
+  },
+  z_ai: {
+    id: "z-ai",
+    name: "Z.AI (Zhipu)",
+    icon: "terminal",
+    color: "#6366F1",
+    description: "Z.AI integration for GLM models with full tool and vision support",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Z.AI provides access to GLM models (GLM-5.1, GLM-5, GLM-4.7) from Zhipu AI's international platform.",
+      },
+      {
+        type: "info",
+        text: "Supports tool/function calling, vision, and thinking mode on supported models.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get API Key",
+        desc: "Visit https://z.ai/manage-apikey/apikey-list and create a new API key.",
+      },
+      {
+        step: 2,
+        title: "Add Z.AI Provider",
+        desc: "Go to Providers → Add New → Select 'Z.AI (Zhipu)'",
+      },
+      {
+        step: 3,
+        title: "Paste API Key",
+        desc: "Paste your Z.AI API key in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Models",
+        desc: "Choose from glm-5.1, glm-5-turbo, glm-4.7, or add custom Z.AI models.",
+      },
+      {
+        step: 5,
+        title: "Enable Tool Parsing",
+        desc: "Tool parsing and function calling work automatically on all requests.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "z-ai",
+  "models": [
+    "glm-5.1",
+    "glm-5-turbo",
+    "glm-4.7",
+    "glm-4.7-flash"
+  ],
+  "apiKey": "<your-z-ai-api-key>",
+  "supportedCapabilities": [
+    "text",
+    "vision",
+    "tools"
+  ]
+}`,
+    },
+  },
+  z_ai_web: {
+    id: "z-ai-web",
+    name: "Z.AI Web (Free)",
+    icon: "terminal",
+    color: "#7c3aed",
+    description: "Z.AI Web UI integration with guest mode (no login required)",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Z.AI Web works without registration via guest mode. Use 'Skip for now' button on login page.",
+      },
+      {
+        type: "info",
+        text: "Free models: GLM-4.7-Flash, GLM-4.5-Flash. CAPTCHA may appear on registration.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "No Login Required",
+        desc: "Z.AI Web works in guest mode. The provider will automatically skip login.",
+      },
+      {
+        step: 2,
+        title: "Add Z.AI Web Provider",
+        desc: "Go to Providers → Add New → Select 'Z.AI Web (Free)'",
+      },
+      {
+        step: 3,
+        title: "Select Model",
+        desc: "Choose from glm-4.7, glm-4.7-flash, glm-4.5-flash, or add custom Z.AI models.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "z-ai-web",
+  "model": "glm-4.7"
+}`,
+    },
+  },
+  grok_web: {
+    id: "grok-web",
+    name: "Grok Web (Subscription)",
+    icon: "terminal",
+    color: "#1DA1F2",
+    description: "Grok Web UI integration with sso cookie authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your Grok account sso cookie to access Grok models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports Grok 3, 4, and 4.1 models including thinking variants.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your SSO Cookie",
+        desc: "Visit https://grok.com while logged in, open Developer Tools (F12) → Application → Cookies → copy the 'sso' value.",
+      },
+      {
+        step: 2,
+        title: "Add Grok Web Provider",
+        desc: "Go to Providers → Add New → Select 'Grok Web (Subscription)'",
+      },
+      {
+        step: 3,
+        title: "Paste SSO Cookie",
+        desc: "Paste your sso cookie value in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from grok-3, grok-4, grok-4.1-mini, or add custom Grok models.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "grok-web",
+  "model": "grok-4",
+  "apiKey": "<your-grok-sso-cookie>"
+}`,
+    },
+  },
   cowork: {
     id: "cowork",
     name: "Claude Cowork",
@@ -374,6 +639,561 @@ amp --model "{{model}}"
   //     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", alias: "flash" },
   //   ],
   // },
+  claude_web: {
+    id: "claude-web",
+    name: "Claude Web (Native)",
+    icon: "terminal",
+    color: "#D97757",
+    description: "Native Claude Web UI integration with sessionKey authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your Claude account sessionKey cookie to access Claude models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports Claude Sonnet 4.6, Opus 4.6, Haiku 4.5, and other Claude models.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your Session Key",
+        desc: "Visit https://claude.ai while logged in, open Developer Tools (F12) → Application → Cookies → copy the 'sessionKey' value.",
+      },
+      {
+        step: 2,
+        title: "Add Claude Web Provider",
+        desc: "Go to Providers → Add New → Select 'Claude Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste Session Key",
+        desc: "Paste your sessionKey cookie value in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5, or add custom Claude models.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "claude-web",
+  "model": "claude-sonnet-4-6",
+  "apiKey": "<your-claude-session-key>"
+}`,
+    },
+  },
+  deepseek_web: {
+    id: "deepseek-web",
+    name: "DeepSeek Web (Native)",
+    icon: "terminal",
+    color: "#4D6BFE",
+    description: "Native DeepSeek Web UI integration with USER_TOKEN authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your DeepSeek account USER_TOKEN to access DeepSeek models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports DeepSeek Chat and DeepSeek Reasoner models with deep thinking.",
+      },
+      {
+        type: "info",
+        text: "18 endpoints available: chat, sessions, history, files, user settings, shared conversations, characters.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your User Token",
+        desc: "Visit https://chat.deepseek.com while logged in, open Developer Tools (F12) → Application → Local Storage → chat.deepseek.com → copy the 'USER_TOKEN' value.",
+      },
+      {
+        step: 2,
+        title: "Add DeepSeek Web Provider",
+        desc: "Go to Providers → Add New → Select 'DeepSeek Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste User Token",
+        desc: "Paste your USER_TOKEN value in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from deepseek-default, deepseek-reasoner, deepseek-expert, or deepseek-vision.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "deepseek-web",
+  "model": "deepseek-default",
+  "apiKey": "<your-deepseek-user-token>"
+}`,
+    },
+  },
+  kimi_web: {
+    id: "kimi-web",
+    name: "Kimi Web (Native)",
+    icon: "terminal",
+    color: "#6C5CE7",
+    description: "Native Kimi Web UI integration with Bearer token authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your Kimi account Bearer token to access Kimi models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports Kimi K2.7, K2.6, K2.5, K2, K1.5 models with thinking and search.",
+      },
+      {
+        type: "info",
+        text: "Token lasts ~30 days. 12 endpoints available: chat, sessions, history, files, user info, models, search.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your Bearer Token",
+        desc: "Visit https://kimi.com while logged in, open Developer Tools (F12) → Network → any request → copy the 'Authorization: Bearer' token value.",
+      },
+      {
+        step: 2,
+        title: "Add Kimi Web Provider",
+        desc: "Go to Providers → Add New → Select 'Kimi Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste Bearer Token",
+        desc: "Paste your Bearer token value in the authentication field.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from kimi-k2.7, kimi-k2.6, kimi-k2.5, kimi-k2, or kimi-k1.5.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "kimi-web",
+  "model": "kimi-k2.7",
+  "apiKey": "<your-kimi-bearer-token>"
+}`,
+    },
+  },
+  minimax_web: {
+    id: "minimax-web",
+    name: "MiniMax Web (Native)",
+    icon: "terminal",
+    color: "#21D07A",
+    description: "Native MiniMax Web UI integration with Bearer token authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your MiniMax account Bearer token to access MiniMax models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports MiniMax M3, M2.7, M2.5, M2.1, M2 models with thinking and search.",
+      },
+      {
+        type: "info",
+        text: "Token from hailuoai.com localStorage. 4 endpoints: chat, TTS, STT, token check.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your Bearer Token",
+        desc: "Visit https://hailuoai.com while logged in, open Developer Tools (F12) → Application → Local Storage → copy _token and realUserID values.",
+      },
+      {
+        step: 2,
+        title: "Combine Token",
+        desc: "Combine as: realUserID + _token (e.g., 450234567894+eyJhbGciOiJIUzI1NiI......)",
+      },
+      {
+        step: 3,
+        title: "Add MiniMax Web Provider",
+        desc: "Go to Providers → Add New → Select 'MiniMax Web (Native)'",
+      },
+      {
+        step: 4,
+        title: "Paste Bearer Token",
+        desc: "Paste your combined token value in the authentication field.",
+      },
+      {
+        step: 5,
+        title: "Select Model",
+        desc: "Choose from minimax-m3, minimax-m2.7, minimax-m2.5, or minimax-m2.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "minimax-web",
+  "model": "minimax-m3",
+  "apiKey": "<realUserID>+<_token>"
+}`,
+    },
+  },
+  gemini_web: {
+    id: "gemini-web",
+    name: "Gemini Web (Native)",
+    icon: "terminal",
+    color: "#4285F4",
+    description: "Native Google Gemini Web UI integration with cookie authentication",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Use your Google account cookies to access Gemini models directly through the web interface.",
+      },
+      {
+        type: "info",
+        text: "Supports Gemini 3 Pro, 3 Flash, 2.5 Pro, 2.5 Flash, and more with thinking and vision.",
+      },
+      {
+        type: "info",
+        text: "Requires __Secure-1PSID and __Secure-1PSIDTS cookies from gemini.google.com.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Your Cookies",
+        desc: "Visit https://gemini.google.com while logged in, open Developer Tools (F12) → Application → Cookies → .google.com → copy __Secure-1PSID and __Secure-1PSIDTS values.",
+      },
+      {
+        step: 2,
+        title: "Add Gemini Web Provider",
+        desc: "Go to Providers → Add New → Select 'Gemini Web (Native)'",
+      },
+      {
+        step: 3,
+        title: "Paste Cookies",
+        desc: "Paste your cookies in the authentication field (format: __Secure-1PSID=xxx; __Secure-1PSIDTS=yyy).",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from gemini-3-pro, gemini-3-flash, gemini-2.5-pro, or gemini-2.5-flash.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "gemini-web",
+  "model": "gemini-3-pro",
+  "apiKey": "__Secure-1PSID=xxx; __Secure-1PSIDTS=yyy"
+}`,
+    },
+  },
+  duck_web: {
+    id: "duck-web",
+    name: "Duck.ai (Free)",
+    icon: "terminal",
+    color: "#DE5833",
+    description: "Free AI chat via Duck.ai - no account required! Supports GPT-4o, Claude, Llama, Mistral",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Duck.ai provides free access to multiple AI models without any account or API key.",
+      },
+      {
+        type: "info",
+        text: "Supports GPT-4o Mini, GPT-5 Mini, Claude Haiku 4.5, Llama 4 Scout, and Mistral Small.",
+      },
+      {
+        type: "info",
+        text: "Rate limited to ~20 requests/minute. No authentication needed.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "No Setup Required",
+        desc: "Duck.ai is free and anonymous — no account or API key needed!",
+      },
+      {
+        step: 2,
+        title: "Add Duck.ai Provider",
+        desc: "Go to Providers → Add New → Select 'Duck.ai (Free)'",
+      },
+      {
+        step: 3,
+        title: "Select Model",
+        desc: "Choose from gpt-4o-mini, gpt-5-mini, claude-haiku-4-5, or meta-llama/Llama-4-Scout-17B-16E-Instruct.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "duck-web",
+  "model": "gpt-4o-mini"
+}`,
+    },
+  },
+  pollinations: {
+    id: "pollinations",
+    name: "Pollinations.ai (Free)",
+    icon: "terminal",
+    color: "#FF6B6B",
+    description: "Free image generation via Pollinations.ai — no account required! Supports Flux, Kontext, Seedream",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Pollinations.ai provides free image generation without any account or API key.",
+      },
+      {
+        type: "info",
+        text: "Supports Flux, Flux Realism, Flux Anime, Kontext, NanoBanana, Seedream, GPT Image, and more.",
+      },
+      {
+        type: "info",
+        text: "Rate limited to 1 request/15s (anonymous). Higher limits with API key.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "No Setup Required",
+        desc: "Pollinations.ai is free and anonymous — no account needed!",
+      },
+      {
+        step: 2,
+        title: "Add Pollinations Provider",
+        desc: "Go to Providers → Add New → Select 'Pollinations.ai (Free)'",
+      },
+      {
+        step: 3,
+        title: "Select Model",
+        desc: "Choose from flux, flux-realism, flux-anime, kontext, or seedream.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "pollinations",
+  "model": "flux",
+  "prompt": "A sunset over mountains"
+}`,
+    },
+  },
+  krea: {
+    id: "krea",
+    name: "Krea AI",
+    icon: "terminal",
+    color: "#8B5CF6",
+    description: "Krea AI image generation — 40+ models including Flux, Imagen 4, Ideogram, Midjourney",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Krea AI provides 40+ image and video generation models via official API.",
+      },
+      {
+        type: "info",
+        text: "Supports Flux, Imagen 4, Ideogram 3.0, Seedream, Recraft, DALL-E 3, Midjourney, and more.",
+      },
+      {
+        type: "info",
+        text: "Free plan with compute units. Get API key from https://www.krea.ai/app/api",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get API Key",
+        desc: "Visit https://www.krea.ai/app/api and create an API key.",
+      },
+      {
+        step: 2,
+        title: "Add Krea Provider",
+        desc: "Go to Providers → Add New → Select 'Krea AI'",
+      },
+      {
+        step: 3,
+        title: "Paste API Key",
+        desc: "Paste your Krea API key.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from flux-1.1-pro, imagen-4, ideogram-3.0, or any of 40+ models.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "krea",
+  "model": "flux-1.1-pro",
+  "apiKey": "<your-krea-api-key>",
+  "prompt": "A sunset over mountains"
+}`,
+    },
+  },
+  jimeng: {
+    id: "jimeng",
+    name: "Jimeng/Dreamina (Free)",
+    icon: "terminal",
+    color: "#FE2C55",
+    description: "ByteDance's free image generation — Jimeng 4.0-6, Seedance video",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Jimeng/Dreamina is ByteDance's free image generation platform.",
+      },
+      {
+        type: "info",
+        text: "Supports Jimeng 4.0, 4.1, 5.0, and 6 with text-to-image and image-to-image.",
+      },
+      {
+        type: "info",
+        text: "Requires session cookie from jimeng.jianying.com. Free via reverse-engineered API.",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get Session Cookie",
+        desc: "Visit https://jimeng.jianying.com while logged in, open Developer Tools (F12) → Network → copy session cookie.",
+      },
+      {
+        step: 2,
+        title: "Add Jimeng Provider",
+        desc: "Go to Providers → Add New → Select 'Jimeng/Dreamina (Free)'",
+      },
+      {
+        step: 3,
+        title: "Paste Cookie",
+        desc: "Paste your session cookie.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from jimeng-6, jimeng-5, jimeng-4.1, or jimeng-4.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "jimeng",
+  "model": "jimeng-6",
+  "apiKey": "<session-cookie>",
+  "prompt": "A sunset over mountains"
+}`,
+    },
+  },
+  flux: {
+    id: "flux",
+    name: "Flux (Black Forest Labs)",
+    icon: "terminal",
+    color: "#10B981",
+    description: "Flux image generation — Schnell (free Apache 2.0), Pro, Flux 2",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Flux by Black Forest Labs — state-of-the-art image generation.",
+      },
+      {
+        type: "info",
+        text: "Schnell model is free (Apache 2.0). Pro models require API credits.",
+      },
+      {
+        type: "info",
+        text: "Get API key from https://api.bfl.ml",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "Get API Key",
+        desc: "Visit https://api.bfl.ml and create an API key.",
+      },
+      {
+        step: 2,
+        title: "Add Flux Provider",
+        desc: "Go to Providers → Add New → Select 'Flux (Black Forest Labs)'",
+      },
+      {
+        step: 3,
+        title: "Paste API Key",
+        desc: "Paste your BFL API key.",
+      },
+      {
+        step: 4,
+        title: "Select Model",
+        desc: "Choose from flux-schnell (free), flux-1.1-pro, flux-dev, or flux-2-pro.",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "flux",
+  "model": "flux-schnell",
+  "apiKey": "<your-bfl-api-key>",
+  "prompt": "A sunset over mountains"
+}`,
+    },
+  },
+  "grok-imagine": {
+    id: "grok-imagine",
+    name: "Grok Imagine (Free)",
+    icon: "terminal",
+    color: "#1DA1F2",
+    description: "xAI's Grok Imagine — free image generation via anonymous sessions",
+    configType: "guide",
+    notes: [
+      {
+        type: "info",
+        text: "Grok Imagine is xAI's free image generation model.",
+      },
+      {
+        type: "info",
+        text: "No API key required — uses anonymous sessions.",
+      },
+      {
+        type: "info",
+        text: "Available at https://grok.x.ai",
+      },
+    ],
+    guideSteps: [
+      {
+        step: 1,
+        title: "No Setup Required",
+        desc: "Grok Imagine is free and anonymous — no account needed!",
+      },
+      {
+        step: 2,
+        title: "Add Grok Imagine Provider",
+        desc: "Go to Providers → Add New → Select 'Grok Imagine (Free)'",
+      },
+    ],
+    codeBlock: {
+      language: "json",
+      code: `{
+  "provider": "grok-imagine",
+  "model": "grok-imagine",
+  "prompt": "A sunset over mountains"
+}`,
+    },
+  },
 };
 
 // Get all provider models for mapping dropdown

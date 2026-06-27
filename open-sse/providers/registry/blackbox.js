@@ -1,19 +1,39 @@
 export default {
-  id: "blackbox",
-  priority: 50,
-  alias: "blackbox",
-  aliases: [
-    "bb",
+  "id": "blackbox",
+  "priority": 50,
+  "alias": "blackbox",
+  "aliases": [
+    "bb"
   ],
-  uiAlias: "bb",
-  display: {
-    name: "Blackbox AI",
-    icon: "smart_toy",
-    color: "#5B5FEF",
-    textIcon: "BB",
-    website: "https://blackbox.ai",
-    notice: {
-      apiKeyUrl: "https://www.blackbox.ai/api-management",
+  "uiAlias": "bb",
+  "display": {
+    "name": "Blackbox AI",
+    "icon": "smart_toy",
+    "color": "#5B5FEF",
+    "textIcon": "BB",
+    "website": "https://blackbox.ai",
+    "notice": {
+      "apiKeyUrl": "https://www.blackbox.ai/api-management"
+    }
+  },
+  "category": "apikey",
+  "transport": {
+    "baseUrl": "https://api.blackbox.ai/chat/completions",
+    "thinkingFormat": "openai"
+  },
+  "models": [
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "capabilities": [
+        "text",
+        "tools"
+      ],
+      "params": [
+        "temperature",
+        "max_tokens",
+        "top_p"
+      ]
     },
   },
   category: "apikey",
