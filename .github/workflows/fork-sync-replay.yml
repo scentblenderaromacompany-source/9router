@@ -1,0 +1,73 @@
+name: Fork Sync Replay
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: "Branch to replay from (example: origin/master)"
+        required: false
+        default: "origin/master"
+      target_branch:
+        description: "Output branch (example: sync/upstream-replay)"
+        required: false
+        default: "sync/upstream-replay"
+      run_tests:
+        description: "Run minimal validation tests after replay"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Ensure upstream remote
+        run: |
+          if git remote get-url upstream >/dev/null 2>&1; then
+            git remote set-url upstream https://github.com/decolua/9router.git
+          else
+            git remote add upstream https://github.com/decolua/9router.git
+          fi
+
+      - name: Replay custom commits on top of upstream
+        env:
+          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          chmod +x scripts/fork-refresh.sh
+          scripts/fork-refresh.sh "$SOURCE_BRANCH" "$TARGET_BRANCH"
+
+      - name: Install deps for tests
+        if: ${{ inputs.run_tests }}
+        run: npm ci
+
+      - name: Run minimal validation tests
+        if: ${{ inputs.run_tests }}
+        run: |
+          node --test test-duck-web.mjs
+          node --test test-grok-imagine.mjs
+
+      - name: Push replay branch
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          git push origin "$TARGET_BRANCH"
