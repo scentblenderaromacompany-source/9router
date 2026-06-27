@@ -143,3 +143,9 @@ Only for reasoning models (`gpt-5-mini`, `claude-haiku-4-5`, `gpt-oss-120b`):
 - [Duck.ai](https://duck.ai)
 - [duck-ai-api (Node.js)](https://github.com/Brioch/duck-ai-api)
 - [p2d-duck (Python)](https://github.com/pooraddyy/p2d-duck)
+
+## 9Router Integration Notes (2026-06)
+
+- In 9Router UI/API setup, treat Duck as a no-auth provider (`authType: "none"`) and allow saving connection without credentials.
+- Real call check with `DuckWebExecutor` currently returns upstream HTTP 400 for a minimal prompt in this environment (provider reachable, request rejected by Duck side).
+- When testing full `/api/v1/*` server routes in Next dev, unrelated webpack compile failure from `gemini-web` transitive dependency can cause HTTP 500 before executor logic runs.

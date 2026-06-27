@@ -568,6 +568,89 @@ export async function POST(request) {
           break;
         }
 
+        case "deepseek-web": {
+          // DeepSeek Web: validate USER_TOKEN by calling /api/v0/users/current
+          try {
+            const token = String(apiKey || "").trim().replace(/^Bearer\s+/i, "");
+            const res = await fetch("https://chat.deepseek.com/api/v0/users/current", {
+              method: "GET",
+              headers: {
+                Accept: "*/*",
+                Authorization: `Bearer ${token}`,
+                Origin: "https://chat.deepseek.com",
+                Referer: "https://chat.deepseek.com/",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "X-Client-Version": "2.0.0",
+                "X-Client-Platform": "web",
+              },
+              signal: AbortSignal.timeout(10000),
+            });
+            let payload = null;
+            try { payload = await res.json(); } catch {}
+
+            const bodyCode = payload?.code;
+            if (res.status === 401 || res.status === 403 || bodyCode === 40003 || bodyCode === 401 || bodyCode === 403) {
+              isValid = false;
+              error = "Invalid USER_TOKEN — re-paste from chat.deepseek.com local storage (F12 → Application → Local Storage → USER_TOKEN)";
+            } else {
+              isValid = true;
+            }
+          } catch (err) {
+            isValid = false;
+            error = `DeepSeek validation failed: ${err.message}`;
+          }
+          break;
+        }
+
+        case "gemini-web": {
+          // Gemini Web: validate cookies by fetching the app page
+          try {
+            // Parse cookies from the apiKey
+            let cookieStr = apiKey;
+            if (apiKey.includes("__Secure-1PSID")) {
+              cookieStr = apiKey;
+            } else if (apiKey.startsWith("{")) {
+              const parsed = JSON.parse(apiKey);
+              const parts = [];
+              if (parsed.__Secure_1PSID || parsed["__Secure-1PSID"]) {
+                parts.push(`__Secure-1PSID=${parsed.__Secure_1PSID || parsed["__Secure-1PSID"]}`);
+              }
+              if (parsed.__Secure_1PSIDTS || parsed["__Secure-1PSIDTS"]) {
+                parts.push(`__Secure-1PSIDTS=${parsed.__Secure_1PSIDTS || parsed["__Secure-1PSIDTS"]}`);
+              }
+              cookieStr = parts.join("; ");
+            } else {
+              cookieStr = `__Secure-1PSID=${apiKey}`;
+            }
+
+            const res = await fetch("https://gemini.google.com/app", {
+              method: "GET",
+              headers: {
+                Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                Cookie: cookieStr,
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+              },
+              redirect: "manual",
+              signal: AbortSignal.timeout(10000),
+            });
+            // Valid cookies: 200 with Gemini content, or redirect to auth (302/303)
+            if (res.status === 401 || res.status === 403) {
+              isValid = false;
+              error = "Invalid Gemini cookies — re-paste from gemini.google.com DevTools → Cookies";
+            } else if (res.status === 302 || res.status === 303) {
+              isValid = false;
+              error = "Gemini cookies expired — log in again at gemini.google.com";
+            } else {
+              isValid = true;
+            }
+          } catch (err) {
+            isValid = false;
+            error = `Gemini validation failed: ${err.message}`;
+          }
+          break;
+        }
+
         default: {
           // Generic probe for OpenAI-compatible providers (config-driven from PROVIDERS)
           const cfg = PROVIDERS[provider];

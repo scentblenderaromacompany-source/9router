@@ -277,84 +277,112 @@ DeepSeek requires a `USER_TOKEN` from browser local storage:
 
 ### Request Format
 
+The web API uses `model_type` (not `model`) to select the base model. Search and thinking are separate flags:
+
 ```json
 {
-  "prompt": "Hello, how are you?",
+  "prompt": "<｜User｜>Hello<｜Assistant｜>",
   "chat_session_id": "session-id",
   "parent_message_id": null,
-  "model": "default",
-  "stream": true,
+  "model_type": "default",
   "search_enabled": false,
   "thinking_enabled": false,
-  "ref_file_ids": []
+  "ref_file_ids": [],
+  "preempt": false
 }
 ```
 
+`model_type` values: `"default"` (V4 Flash) or `"expert"` (V4 Pro).
+
 ### Response Format (SSE)
 
+DeepSeek uses two SSE formats:
+
+**Format 1 (v0 format with fragments):**
+```json
+data: {"v":{"response":{"message_id":4,"fragments":[{"content":"Hello"}]}}}
+data: {"p":"response/fragments/-1/content","o":"APPEND","v":"."}
+data: {"p":"response/status","o":"SET","v":"FINISHED"}
+```
+
+**Format 2 (OpenAI-compatible):**
 ```json
 data: {"choices": [{"delta": {"content": "Hello"}, "finish_reason": null}]}
-data: {"choices": [{"delta": {"content": "!"}, "finish_reason": null}]}
 data: {"choices": [{"delta": {}, "finish_reason": "stop"}]}
 data: [DONE]
 ```
 
-### Available Models
+Thinking content arrives as `reasoning_content` in the delta. Search results arrive via `response/search_results` path.
 
-| Model ID | Name | Reasoning | Search | Vision |
-|----------|------|:---------:|:------:|:------:|
-| `deepseek-default` | DeepSeek V4 Flash | ✗ | ✗ | ✗ |
-| `deepseek-reasoner` | DeepSeek V4 Flash Reasoning | ✓ | ✗ | ✗ |
-| `deepseek-search` | DeepSeek V4 Flash Search | ✗ | ✓ | ✗ |
-| `deepseek-reasoner-search` | DeepSeek V4 Flash Reasoning+Search | ✓ | ✓ | ✗ |
-| `deepseek-expert` | DeepSeek V4 Pro | ✗ | ✗ | ✗ |
-| `deepseek-expert-reasoner` | DeepSeek V4 Pro Reasoning | ✓ | ✗ | ✗ |
-| `deepseek-expert-search` | DeepSeek V4 Pro Search | ✗ | ✓ | ✗ |
-| `deepseek-expert-reasoner-search` | DeepSeek V4 Pro Reasoning+Search | ✓ | ✓ | ✗ |
-| `deepseek-vision` | DeepSeek Vision | ✗ | ✗ | ✓ |
-| `deepseek-vision-reasoner` | DeepSeek Vision Reasoning | ✓ | ✗ | ✓ |
+### Authentication
+
+1. Token exchange: `GET /api/v0/users/current` with `Authorization: Bearer <USER_TOKEN>` → returns `accessToken`
+2. PoW challenge: `POST /api/v0/chat/create_pow_challenge` → solve with WASM SHA-3 hash → `X-Ds-Pow-Response` header
+3. Session: `POST /api/v0/chat_session/create` → `chat_session_id`
+
+### Available Models (Official API IDs)
+
+| Model ID | Name | model_type | thinking | search |
+|----------|------|:----------:|:--------:|:------:|
+| `deepseek-v4-flash` | DeepSeek V4 Flash | default | ✗ | ✗ |
+| `deepseek-v4-flash-reasoner` | DeepSeek V4 Flash Reasoning | default | ✓ | ✗ |
+| `deepseek-v4-flash-search` | DeepSeek V4 Flash Search | default | ✗ | ✓ |
+| `deepseek-v4-flash-reasoner-search` | DeepSeek V4 Flash Reasoning+Search | default | ✓ | ✓ |
+| `deepseek-v4-pro` | DeepSeek V4 Pro | expert | ✗ | ✗ |
+| `deepseek-v4-pro-reasoner` | DeepSeek V4 Pro Reasoning | expert | ✓ | ✗ |
+| `deepseek-v4-pro-search` | DeepSeek V4 Pro Search | expert | ✗ | ✓ |
+| `deepseek-v4-pro-reasoner-search` | DeepSeek V4 Pro Reasoning+Search | expert | ✓ | ✓ |
+| `deepseek-chat` | DeepSeek V3.2 Chat (legacy) | default | ✗ | ✗ |
+| `deepseek-reasoner` | DeepSeek V3.2 Reasoner (legacy) | default | ✓ | ✗ |
+
+### Prompt Format
+
+Use DeepSeek-specific markers (not `[System]`/`[Assistant]`):
+- System: plain text (no prefix)
+- User: `<｜User｜>message`
+- Assistant: `<｜Assistant｜>message<｜end of sentence｜>`
 
 ### Usage Example
 
 ```javascript
-// Basic chat
+// V4 Flash (default)
 {
   "provider": "deepseek-web",
-  "model": "deepseek-default",
+  "model": "deepseek-v4-flash",
   "apiKey": "<your-deepseek-user-token>"
 }
 
-// Reasoning mode
+// V4 Flash with reasoning
 {
   "provider": "deepseek-web",
-  "model": "deepseek-reasoner",
+  "model": "deepseek-v4-flash-reasoner",
   "apiKey": "<your-deepseek-user-token>"
 }
 
-// Expert (V4 Pro) with reasoning
+// V4 Pro with reasoning + search
 {
   "provider": "deepseek-web",
-  "model": "deepseek-expert-reasoner",
+  "model": "deepseek-v4-pro-reasoner-search",
   "apiKey": "<your-deepseek-user-token>"
 }
 ```
 
 ### Features
 
-- **Session Management** — Automatic session creation and caching
+- **Token Exchange** — USER_TOKEN → accessToken via `/api/v0/users/current`
+- **PoW Solving** — WASM SHA-3 challenge solver with `X-Ds-Pow-Response` header
+- **Session Management** — Automatic session creation with 5-minute TTL
 - **Multi-turn Conversations** — Parent message ID tracking
-- **Proof of Work (PoW)** — Automatic challenge solving
 - **Deep Thinking** — Reasoning content in `reasoning_content` field
-- **Web Search** — Real-time search results
-- **File Upload** — Text and image file support
-- **Tool Calling** — Via DSML prompt injection
+- **Web Search** — Search citations appended to response
+- **Tool Calling** — Via bracket-format prompt injection
 
 ### Notes
 
 - Token expires in ~24 hours; re-login required
-- PoW solving requires Node.js for WASM solver
+- PoW solving uses WASM binary at `open-sse/lib/deepseek/sha3_wasm_bg.wasm`
 - Concurrent requests limited to ~2 per account
-- Sessions are cached and reused for multi-turn conversations
+- Sessions are cached with 5-minute expiry
 
 ### Reference
 
@@ -586,9 +614,49 @@ See `references/minimax-web.md` for complete API documentation including all 4 e
 Gemini requires cookies from browser DevTools:
 
 1. Login to https://gemini.google.com
-2. Open Developer Tools (F12) → Application → Cookies → .google.com
-3. Copy `__Secure-1PSID` and `__Secure-1PSIDTS` values
-4. Use as `apiKey` in provider config (format: `__Secure-1PSID=xxx; __Secure-1PSIDTS=yyy`)
+2. Open Developer Tools (F12) → Application → Cookies → .google.com and .gemini.google.com
+3. Copy ALL cookies (including `__Secure-BUCKET`, `SID`, `__Secure-1PSID`, etc.)
+4. Use as `apiKey` in provider config (format: `__Secure-BUCKET=xxx; SID=yyy; ...`)
+
+**Required cookies**: `__Secure-BUCKET`, `SID`, `__Secure-1PSID`, `__Secure-3PSID`, `HSID`, `SSID`, `APISID`, `SAPISID`, `__Secure-1PAPISID`, `__Secure-3PAPISID`, `SEARCH_SAMESITE`, `AEC`, `NID`, `SIDCC`, `__Secure-1PSIDCC`, `COMPASS`
+
+### XSRF Token (`at`) - REQUIRED
+
+**The `at` (XSRF) token is generated client-side by JavaScript at runtime.** It is NOT embedded in the HTML page.
+
+#### Automatic Extraction (requires Puppeteer + Chrome)
+
+If Puppeteer and Chrome are installed, the executor automatically extracts the `at` token:
+
+```bash
+# Install Chrome for Puppeteer (one-time)
+npx puppeteer browsers install chrome
+```
+
+#### Manual Extraction
+
+If Puppeteer is not available, you must provide the token manually:
+
+1. Open Gemini in Chrome browser
+2. Open DevTools (F12) → Network tab
+3. Send a message in Gemini
+4. Find the `StreamGenerate` request
+5. Look at the POST body: `at=AD1_L...:timestamp`
+6. Copy the full `at` value
+
+#### Passing Credentials
+
+```javascript
+const result = await executor.execute({
+  model: 'gemini-3-flash',
+  body: { messages },
+  stream: false,
+  credentials: {
+    apiKey: '__Secure-BUCKET=xxx; SID=yyy; ...',  // all cookies
+    xsrfToken: 'AD1_LW4ABImQjbjW_zsU5y0Pq9zo:1782560022823'  // optional if Puppeteer available
+  }
+});
+```
 
 ### API Endpoints
 
@@ -599,40 +667,84 @@ Gemini requires cookies from browser DevTools:
 
 ### Request Format
 
-Gemini uses a non-standard 81-element sparse array format with URL-encoded form body.
+Gemini uses a 92-element sparse array format with URL-encoded form body:
+
+```javascript
+// Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+// Body: f.req=[null,"[<92-element array>]"]&at=[xsrf_token]&
+```
+
+Key array positions:
+- `[0]` = `[prompt, 0, null, null, null, null, 0]`
+- `[3]` = encrypted context string (random base64)
+- `[4]` = 32-char hex model ID
+- `[6]` = `[1]`
+- `[7]` = `1` (always)
+- `[41]` = `[1]`
+- `[68]` = `2`
+- `[79]` = model number (3 for flash, 1 for lite)
+
+**Additional required headers**:
+```
+x-browser-validation: 2ykZOU4XYx2sxnP11h4q1YHHPHU=
+x-goog-ext-525001261-jspb: [1,null,null,null,"9d8ca3786ebdfbea",...]
+x-goog-ext-525005358-jspb: ["5C7CD49B-CC82-4DA6-B8B0-518BC813EB51",1]
+x-goog-ext-73010989-jspb: [0]
+x-goog-ext-73010990-jspb: [0,0,0]
+x-client-data: COjvygE=
+sec-ch-ua: "Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"
+```
+
+### Response Format (Non-SSE)
+
+Gemini uses a non-standard streaming format (not SSE). Response starts with `)]}'` security prefix, then alternating line counts and JSON arrays:
+
+```
+)]}'
+177
+[["wrb.fr",null,"[null,[...],{...}]"]]
+1331
+[["wrb.fr",null,"[null,[...],{...}]"]]
+```
+
+Content extraction path:
+```
+parsed[0][2] → JSON string → inner[4][0][1][0] → text content
+inner[4][0][8][0] === 2 → done indicator
+```
 
 ### Available Models
 
-| Model ID | Name |
-|----------|------|
-| `gemini-3-pro` | Gemini 3 Pro |
-| `gemini-3-flash` | Gemini 3 Flash |
-| `gemini-3-flash-thinking` | Gemini 3 Flash Thinking |
-| `gemini-3-lite` | Gemini 3 Lite |
-| `gemini-2.5-pro` | Gemini 2.5 Pro |
-| `gemini-2.5-flash` | Gemini 2.5 Flash |
-| `gemini-2.0-flash` | Gemini 2.0 Flash |
-| `gemini-2.0-flash-lite` | Gemini 2.0 Flash Lite |
+| Model ID | Name | Model Number |
+|----------|------|:------------:|
+| `gemini-3-pro` | Gemini 3 Pro | 3 |
+| `gemini-3-flash` | Gemini 3 Flash | 3 |
+| `gemini-3-flash-thinking` | Gemini 3 Flash Thinking | 1 |
+| `gemini-3-lite` | Gemini 3 Lite | 6 |
+| `gemini-2.5-pro` | Gemini 2.5 Pro | 3 |
+| `gemini-2.5-flash` | Gemini 2.5 Flash | 1 |
+| `gemini-2.0-flash` | Gemini 2.0 Flash | 1 |
+| `gemini-2.0-flash-lite` | Gemini 2.0 Flash Lite | 1 |
 
-### Usage Example
+### Features
 
-```javascript
-{
-  "provider": "gemini-web",
-  "model": "gemini-3-pro",
-  "apiKey": "__Secure-1PSID=xxx; __Secure-1PSIDTS=yyy"
-}
-```
+- **Streaming** — Non-standard chunked format (not SSE)
+- **Thinking/Reasoning** — Extracted from nested array path
+- **Tool Calling** — Via bracket-format prompt injection
+- **Multi-turn** — Session-based conversations
 
 ### Notes
 
-- Token from Google account cookies
+- Cookie from Google account expires in ~30 days
 - Non-standard streaming format (not SSE)
 - Supports thinking/reasoning content
+- Session initialization fetches page for `FdrFJe` (sessionId) and `cfb2h` (buildLabel)
+- `SNlM0e` (access token) was removed from HTML in April 2026
+- `at` token must be provided manually from browser DevTools
 
 ### Reference
 
-See `references/gemini-web.md` for complete API documentation.
+See `references/gemini-web.md` for complete API documentation including HAR analysis findings.
 
 ## Duck.ai (DuckWeb) Integration
 
@@ -683,6 +795,14 @@ See `references/gemini-web.md` for complete API documentation.
 ### Reference
 
 See `references/duck-web.md` for complete API documentation.
+
+### 2026-06 Setup Notes (9Router)
+
+- Provider setup modal now treats `authType: "none"` as no-auth and hides credential input.
+- `POST /api/providers` now allows creating no-auth providers without `apiKey`.
+- Verified creation flow for `duck-web` via authenticated local API call.
+- `grok-imagine` setup requires provider to be accepted by `/api/providers` as a free/no-auth provider.
+- Full `/api/v1/*` runtime end-to-end can be blocked in dev when webpack fails on `gemini-web` transitive `puppeteer-extra` import (`clone-deep` static analysis error).
 
 ## Image Generation Providers
 

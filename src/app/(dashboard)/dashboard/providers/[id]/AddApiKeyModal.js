@@ -7,15 +7,17 @@ import { AI_PROVIDERS } from "@/shared/constants/providers";
 
 const BULK_PLACEHOLDER = `name1|sk-key1\nname2|sk-key2\nsk-key-only-auto-named`;
 
-export default function AddApiKeyModal({ isOpen, provider, providerName, isCompatible, isAnthropic, authType, authHint, website, proxyPools, error, onSave, onBulkDone, onClose }) {
+export default function AddApiKeyModal({ isOpen, provider, providerName, isCompatible, isAnthropic, authType, authHint, website, credentialPlaceholder: credentialPlaceholderProp, proxyPools, error, onSave, onBulkDone, onClose }) {
   const NONE_PROXY_POOL_VALUE = "__none__";
   const isOllamaLocal = provider === "ollama-local";
+  const providerMeta = AI_PROVIDERS?.[provider] || {};
+  const isNoAuthProvider = authType === "none" || providerMeta?.authType === "none" || providerMeta?.noAuth === true;
   const isCookie = authType === "cookie";
   const isXaiApiKey = provider === "xai" && !isCookie;
   const credentialLabel = isCookie ? "Cookie Value" : "API Key";
-  const credentialPlaceholder = isCookie
+  const credentialPlaceholder = credentialPlaceholderProp || (isCookie
     ? (provider === "grok-web" ? "sso=xxxxx... or just the raw value" : "eyJhbGciOi...")
-    : (isXaiApiKey ? "xai-..." : "");
+    : (isXaiApiKey ? "xai-..." : ""));
 
   const isAzure = provider === "azure";
   const isCloudflareAi = provider === "cloudflare-ai";
@@ -37,6 +39,8 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
     organization: "",
   });
   const [cloudflareData, setCloudflareData] = useState({ accountId: "" });
+  const isGeminiWeb = provider === "gemini-web";
+  const [geminiData, setGeminiData] = useState({ xsrfToken: "" });
   const [region, setRegion] = useState(defaultRegion);
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
@@ -59,6 +63,9 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
     }
     if (isCloudflareAi) {
       return { accountId: cloudflareData.accountId };
+    }
+    if (isGeminiWeb && geminiData.xsrfToken.trim()) {
+      return { xsrfToken: geminiData.xsrfToken.trim() };
     }
     if (providerRegions && region) {
       return { region };
@@ -85,11 +92,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
 
   const handleSubmit = async () => {
     if (!provider) return;
-    if (!isOllamaLocal && !formData.apiKey) return;
-    if (!isOllamaLocal) {
-      // Non-ollama providers require a name
-      if (!formData.name) return;
-    }
+    if (!isOllamaLocal && !isNoAuthProvider && !formData.apiKey) return;
     if (isCompatible && !formData.defaultModel.trim()) return;
 
     setSaving(true);
@@ -158,7 +161,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
   if (!provider) return null;
 
   return (
-    <Modal isOpen={isOpen} title={`Add ${providerName || provider} ${credentialLabel}`} onClose={onClose}>
+    <Modal isOpen={isOpen} title={`Add ${providerName || provider} ${isNoAuthProvider ? "Connection" : credentialLabel}`} onClose={onClose}>
       <div className="flex flex-col gap-4">
         {/* Mode switcher */}
         <div className="flex gap-2">
@@ -212,7 +215,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
             </div>
           </div>
         )}
-        {!isOllamaLocal && (
+        {!isOllamaLocal && !isNoAuthProvider && (
           <div className="flex gap-2">
             <Input
               label={credentialLabel}
@@ -229,9 +232,27 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
             </div>
           </div>
         )}
+        {isNoAuthProvider && (
+          <p className="text-xs text-text-muted">
+            No credentials required for this provider. Click Save to create the connection.
+          </p>
+        )}
         {isXaiApiKey && (
           <p className="text-xs text-text-muted">
             Use a direct xAI API key from console.x.ai. This is separate from Grok Build OAuth.
+          </p>
+        )}
+        {isGeminiWeb && (
+          <Input
+            label="XSRF Token (at) — optional"
+            value={geminiData.xsrfToken}
+            onChange={(e) => setGeminiData({ ...geminiData, xsrfToken: e.target.value })}
+            placeholder="AD1_L...:timestamp (auto-extracted if Puppeteer/Chrome installed)"
+          />
+        )}
+        {isGeminiWeb && (
+          <p className="text-xs text-text-muted">
+            If Chrome is installed, the XSRF token is extracted automatically. Otherwise, get it from DevTools → Network → StreamGenerate POST body: <code>at=AD1_L...:timestamp</code>
           </p>
         )}
         {isCookie && authHint && (
@@ -356,7 +377,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
         </p>
 
         <div className="flex gap-2">
-          <Button onClick={handleSubmit} fullWidth disabled={saving || (!isOllamaLocal && (!formData.name || !formData.apiKey)) || (isCompatible && !formData.defaultModel.trim()) || (isAzure && (!azureData.azureEndpoint || !azureData.deployment || !azureData.organization)) || (isCloudflareAi && !cloudflareData.accountId)}>
+          <Button onClick={handleSubmit} fullWidth disabled={saving || (!isOllamaLocal && !isNoAuthProvider && !formData.apiKey) || (isCompatible && !formData.defaultModel.trim()) || (isAzure && (!azureData.azureEndpoint || !azureData.deployment || !azureData.organization)) || (isCloudflareAi && !cloudflareData.accountId)}>
             {saving ? "Saving..." : "Save"}
           </Button>
           <Button onClick={onClose} variant="ghost" fullWidth>
