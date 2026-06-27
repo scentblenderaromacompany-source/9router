@@ -30,8 +30,8 @@ DeepSeek Web API provides direct access to chat.deepseek.com's web interface.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/users/current` | GET | Get current user info (used for token validation) |
 | `/users/login` | POST | Login with credentials |
-| `/users/me` | GET | Get current user info |
 | `/users/settings` | GET | Get user settings |
 | `/users/settings` | PUT | Update user settings |
 
@@ -62,24 +62,40 @@ DeepSeek Web API provides direct access to chat.deepseek.com's web interface.
 
 ## Authentication
 
+### Token Exchange
+
+1. Call `GET /api/v0/users/current` with `Authorization: Bearer <USER_TOKEN>`
+2. Response contains `data.biz_data.token` (access token) — valid for ~1 hour
+3. Use access token for subsequent API calls
+
+### Required Headers
+
 ```http
-Authorization: Bearer <USER_TOKEN>
-```
-
-Get token from: F12 → Application → Local Storage → chat.deepseek.com → USER_TOKEN
-
-## Required Headers
-
-```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36
 Origin: https://chat.deepseek.com
 Referer: https://chat.deepseek.com/
-x-app-version: 20241129.1
-x-client-locale: en_US
-x-client-platform: web
-x-client-version: 1.0.0-always
-x-ds-pow-response: <pow_solution>
+X-App-Version: 2.0.0
+X-Client-Locale: en_US
+X-Client-Platform: web
+X-Client-Version: 2.0.0
+X-Ds-Pow-Response: <pow_solution_base64>
 ```
+
+### Proof of Work (PoW)
+
+Required for chat and file upload endpoints:
+
+1. Call `POST /chat/create_pow_challenge` with `{"target_path": "/api/v0/chat/completion"}`
+2. Solve challenge using WASM SHA-3 hash (algorithm: `DeepSeekHashV1`)
+3. Encode solution as Base64 JSON and add to `X-Ds-Pow-Response` header
+
+### Token Validation
+
+To validate a USER_TOKEN, call `GET /api/v0/users/current`:
+- HTTP 200 with `code: 0` → valid
+- HTTP 401/403 or `code: 40003` → invalid/expired
 
 ---
 
@@ -106,14 +122,24 @@ Send a chat message with SSE streaming response.
 
 ```
 event: ready
-data: {"request_message_id":1,"response_message_id":2}
+data: {"request_message_id":3,"response_message_id":4,"model_type":"default"}
 
-data: {"p":"response/content","v":"Hello"}
+event: update_session
+data: {"updated_at":1782482484.660483}
 
-data: {"p":"response/status","v":"FINISHED"}
+data: {"v":{"response":{"message_id":4,"parent_id":3,"model":"","role":"ASSISTANT","thinking_enabled":false,"ban_edit":false,"ban_regenerate":false,"status":"WIP","incomplete_message":null,"accumulated_token_usage":0,"feedback":null,"inserted_at":1782482484.648015,"search_enabled":false,"fragments":[{"id":2,"type":"RESPONSE","content":"Hello","references":[],"stage_id":1}],"conversation_mode":"DEFAULT","has_pending_fragment":false,"auto_continue":false,"search_triggered":false}}}
 
-event: finish
-data: {}
+data: {"p":"response/fragments/-1/content","o":"APPEND","v":"."}
+
+data: {"p":"response","o":"BATCH","v":[{"p":"accumulated_token_usage","v":49},{"p":"quasi_status","v":"FINISHED"}]}
+
+data: {"p":"response/status","o":"SET","v":"FINISHED"}
+
+event: update_session
+data: {"updated_at":1782482484.824122}
+
+event: close
+data: {"click_behavior":"none","auto_resume":false}
 ```
 
 ### POST /chat_session/create
@@ -220,11 +246,18 @@ Create a Proof of Work challenge.
 {
   "code": 0,
   "data": {
+    "biz_code": 0,
+    "biz_msg": "",
     "biz_data": {
       "challenge": {
         "algorithm": "DeepSeekHashV1",
-        "target": "00000...",
-        "salt": "random_string"
+        "challenge": "0bbb2e1858e367e67ec0d9183f91554626673df2d595bec52e1388b1d3217ce1",
+        "salt": "1044c2944c60cab9f056",
+        "signature": "7137e3181ac684b26fbcb484660622505ef0502681350097c4488ab67a9e895a",
+        "difficulty": 144000,
+        "expire_at": 1782482728802,
+        "expire_after": 300000,
+        "target_path": "/api/v0/chat/completion"
       }
     }
   }
@@ -416,18 +449,33 @@ Create a custom character.
 
 ## Models
 
-| Model ID | Type | Reasoning | Search | Vision |
-|----------|------|:---------:|:------:|:------:|
-| `default` | V4 Flash | ✗ | ✗ | ✗ |
-| `reasoner` | V4 Flash Reasoning | ✓ | ✗ | ✗ |
-| `search` | V4 Flash Search | ✗ | ✓ | ✗ |
-| `reasoner-search` | V4 Flash Reasoning+Search | ✓ | ✓ | ✗ |
-| `expert` | V4 Pro | ✗ | ✗ | ✗ |
-| `expert-reasoner` | V4 Pro Reasoning | ✓ | ✗ | ✗ |
-| `expert-search` | V4 Pro Search | ✗ | ✓ | ✗ |
-| `expert-reasoner-search` | V4 Pro Reasoning+Search | ✓ | ✓ | ✗ |
-| `vision` | Vision | ✗ | ✗ | ✓ |
-| `vision-reasoner` | Vision Reasoning | ✓ | ✗ | ✓ |
+### Internal model_type Values (sent in API request)
+
+| model_type | Base Model | Reasoning | Search |
+|------------|------------|:---------:|:------:|
+| `default` | V4 Flash | ✗ | ✗ |
+| `default` + `thinking_enabled` | V4 Flash Reasoning | ✓ | ✗ |
+| `default` + `search_enabled` | V4 Flash Search | ✗ | ✓ |
+| `default` + both | V4 Flash Reasoning+Search | ✓ | ✓ |
+| `expert` | V4 Pro | ✗ | ✗ |
+| `expert` + `thinking_enabled` | V4 Pro Reasoning | ✓ | ✗ |
+| `expert` + `search_enabled` | V4 Pro Search | ✗ | ✓ |
+| `expert` + both | V4 Pro Reasoning+Search | ✓ | ✓ |
+
+### User-Facing Model IDs (mapped by executor)
+
+| Model ID | model_type | thinking | search |
+|----------|:----------:|:--------:|:------:|
+| `deepseek-v4-flash` | default | ✗ | ✗ |
+| `deepseek-v4-flash-reasoner` | default | ✓ | ✗ |
+| `deepseek-v4-flash-search` | default | ✗ | ✓ |
+| `deepseek-v4-flash-reasoner-search` | default | ✓ | ✓ |
+| `deepseek-v4-pro` | expert | ✗ | ✗ |
+| `deepseek-v4-pro-reasoner` | expert | ✓ | ✗ |
+| `deepseek-v4-pro-search` | expert | ✗ | ✓ |
+| `deepseek-v4-pro-reasoner-search` | expert | ✓ | ✓ |
+| `deepseek-chat` | default | ✗ | ✗ |
+| `deepseek-reasoner` | default | ✓ | ✗ |
 
 ---
 
@@ -477,14 +525,20 @@ DeepSeek requires PoW verification for chat and file upload endpoints.
 
 DeepSeek uses two SSE formats:
 
-**Format 1 (Full format):**
+**Format 1 (v0 format with fragments):**
 ```json
-{"p": "response/content", "o": "APPEND", "v": "text"}
+data: {"v":{"response":{"message_id":4,"parent_id":3,"model":"","role":"ASSISTANT","thinking_enabled":false,"ban_edit":false,"ban_regenerate":false,"status":"WIP","incomplete_message":null,"accumulated_token_usage":0,"feedback":null,"inserted_at":1782482484.648015,"search_enabled":false,"fragments":[{"id":2,"type":"RESPONSE","content":"Hello","references":[],"stage_id":1}],"conversation_mode":"DEFAULT","has_pending_fragment":false,"auto_continue":false,"search_triggered":false}}}
+
+data: {"p":"response/fragments/-1/content","o":"APPEND","v":"."}
+
+data: {"p":"response/status","o":"SET","v":"FINISHED"}
 ```
 
-**Format 2 (Simplified):**
+**Format 2 (OpenAI-compatible):**
 ```json
-{"v": "text"}
+data: {"choices": [{"delta": {"content": "Hello"}, "finish_reason": null}]}
+data: {"choices": [{"delta": {}, "finish_reason": "stop"}]}
+data: [DONE]
 ```
 
 **Status updates:**

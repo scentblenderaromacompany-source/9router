@@ -236,8 +236,12 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // Execute request
   let providerResponse, providerUrl, providerHeaders, finalBody;
+  const hasTools = Array.isArray(translatedBody.tools) && translatedBody.tools.length > 0;
+  const useToolExec = hasTools && typeof executor.executeWithTools === "function";
   try {
-    const result = await executor.execute({ model, body: translatedBody, stream, credentials, signal: streamController.signal, log, proxyOptions });
+    const result = useToolExec
+      ? await executor.executeWithTools(model, translatedBody.messages, translatedBody.tools, translatedBody.tool_choice, stream, credentials, streamController.signal, log)
+      : await executor.execute({ model, body: translatedBody, stream, credentials, signal: streamController.signal, log, proxyOptions });
     providerResponse = result.response;
     providerUrl = result.url;
     providerHeaders = result.headers;
@@ -276,7 +280,9 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
           try { await onCredentialsRefreshed(newCredentials); } catch (e) { log?.warn?.("TOKEN", `onCredentialsRefreshed failed: ${e.message}`); }
         }
         try {
-          const retryResult = await executor.execute({ model, body: translatedBody, stream, credentials, signal: streamController.signal, log, proxyOptions });
+          const retryResult = useToolExec
+            ? await executor.executeWithTools(model, translatedBody.messages, translatedBody.tools, translatedBody.tool_choice, stream, credentials, streamController.signal, log)
+            : await executor.execute({ model, body: translatedBody, stream, credentials, signal: streamController.signal, log, proxyOptions });
           if (retryResult.response.ok) { providerResponse = retryResult.response; providerUrl = retryResult.url; }
         } catch { log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh failed`); }
       } else {

@@ -701,11 +701,19 @@ amp --model "{{model}}"
       },
       {
         type: "info",
-        text: "Supports DeepSeek Chat and DeepSeek Reasoner models with deep thinking.",
+        text: "Supports reasoning (deep thinking), web search, and tool calling via prompt injection.",
       },
       {
         type: "info",
-        text: "18 endpoints available: chat, sessions, history, files, user settings, shared conversations, characters.",
+        text: "V4 Flash: deepseek-v4-flash, deepseek-v4-flash-reasoner, deepseek-v4-flash-search.",
+      },
+      {
+        type: "info",
+        text: "V4 Pro: deepseek-v4-pro, deepseek-v4-pro-reasoner, deepseek-v4-pro-search.",
+      },
+      {
+        type: "warning",
+        text: "Token expires in ~24 hours. Re-login and re-paste if you get auth errors.",
       },
     ],
     guideSteps: [
@@ -722,19 +730,19 @@ amp --model "{{model}}"
       {
         step: 3,
         title: "Paste User Token",
-        desc: "Paste your USER_TOKEN value in the authentication field.",
+        desc: "Paste your USER_TOKEN value in the authentication field and save.",
       },
       {
         step: 4,
         title: "Select Model",
-        desc: "Choose from deepseek-default, deepseek-reasoner, deepseek-expert, or deepseek-vision.",
+        desc: "V4 Flash: deepseek-v4-flash | V4 Pro: deepseek-v4-pro | Add -reasoner for thinking, -search for web search.",
       },
     ],
     codeBlock: {
       language: "json",
       code: `{
   "provider": "deepseek-web",
-  "model": "deepseek-default",
+  "model": "deepseek-v4-flash",
   "apiKey": "<your-deepseek-user-token>"
 }`,
     },

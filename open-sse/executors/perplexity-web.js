@@ -3,6 +3,7 @@ import { BaseExecutor } from "./base.js";
 import { PROVIDERS } from "../config/providers.js";
 import { SSE_DONE, SSE_HEADERS_NO_BUFFER } from "../utils/sseConstants.js";
 import { sseChunk } from "../utils/sse.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
 
 const PPLX_SSE_ENDPOINT = PROVIDERS["perplexity-web"].baseUrl;
 const PPLX_API_VERSION = "2.18";
@@ -395,6 +396,7 @@ export class PerplexityWebExecutor extends BaseExecutor {
   }
 
   async execute({ model, body, stream, credentials, signal, log }) {
+    this._pendingTools = body?.tools || [];
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       const errResp = new Response(JSON.stringify({
@@ -498,6 +500,17 @@ export class PerplexityWebExecutor extends BaseExecutor {
       finalResponse = await buildNonStreamingResponse(response.body, model, cid, created, parsed.history, parsed.currentMsg, signal);
     }
     return { response: finalResponse, url: PPLX_SSE_ENDPOINT, headers, transformedBody: pplxBody };
+  }
+
+  /**
+   * Parse tool calls from Perplexity model output.
+   * Perplexity has no real tool support; uses managed bracket protocol for simulation.
+   * @param {string} content - Model output text
+   * @param {Array} [tools] - Available tools for validation
+   * @returns {{content: string, toolCalls: Array}}
+   */
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, 'default');
   }
 }
 

@@ -53,6 +53,9 @@ export default function ProfilePage() {
     outboundProxyEnabled: false,
     outboundProxyUrl: "",
     outboundNoProxy: "",
+    chat2ApiProxyEnabled: false,
+    chat2ApiProxyBaseUrl: "",
+    chat2ApiProxyApiKey: "",
   });
   const [proxyStatus, setProxyStatus] = useState({ type: "", message: "" });
   const [proxyLoading, setProxyLoading] = useState(false);
@@ -80,6 +83,9 @@ export default function ProfilePage() {
           outboundProxyEnabled: data?.outboundProxyEnabled === true,
           outboundProxyUrl: data?.outboundProxyUrl || "",
           outboundNoProxy: data?.outboundNoProxy || "",
+          chat2ApiProxyEnabled: data?.chat2ApiProxyEnabled === true,
+          chat2ApiProxyBaseUrl: data?.chat2ApiProxyBaseUrl || "",
+          chat2ApiProxyApiKey: data?.chat2ApiProxyApiKey || "",
         });
         setLoading(false);
       })
@@ -184,6 +190,39 @@ export default function ProfilePage() {
         });
       } else {
         setProxyStatus({ type: "error", message: data.error || "Failed to update proxy settings" });
+      }
+    } catch (err) {
+      setProxyStatus({ type: "error", message: "An error occurred" });
+    } finally {
+      setProxyLoading(false);
+    }
+  };
+
+  const updateChat2ApiProxy = async (e) => {
+    e.preventDefault();
+    setProxyLoading(true);
+    setProxyStatus({ type: "", message: "" });
+
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat2ApiProxyEnabled: proxyForm.chat2ApiProxyEnabled,
+          chat2ApiProxyBaseUrl: proxyForm.chat2ApiProxyBaseUrl,
+          chat2ApiProxyApiKey: proxyForm.chat2ApiProxyApiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSettings((prev) => ({ ...prev, ...data }));
+        setProxyStatus({
+          type: "success",
+          message: proxyForm.chat2ApiProxyEnabled ? "Chat2API proxy enabled" : "Chat2API proxy disabled",
+        });
+      } else {
+        setProxyStatus({ type: "error", message: data.error || "Failed to update Chat2API proxy settings" });
       }
     } catch (err) {
       setProxyStatus({ type: "error", message: "An error occurred" });
@@ -1069,6 +1108,51 @@ export default function ProfilePage() {
                 </div>
               </form>
             )}
+
+            <form onSubmit={updateChat2ApiProxy} className="flex flex-col gap-4 pt-2 border-t border-border/50">
+              <div className="flex items-start sm:items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">Chat2API Proxy</p>
+                  <p className="text-xs sm:text-sm text-text-muted">Route OpenAI-compatible requests to an upstream Chat2API server.</p>
+                </div>
+                <Toggle
+                  checked={proxyForm.chat2ApiProxyEnabled}
+                  onChange={() => setProxyForm((prev) => ({ ...prev, chat2ApiProxyEnabled: !prev.chat2ApiProxyEnabled }))}
+                  disabled={loading || proxyLoading}
+                />
+              </div>
+
+              {proxyForm.chat2ApiProxyEnabled && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-medium text-sm sm:text-base">Chat2API Base URL</label>
+                    <Input
+                      placeholder="http://127.0.0.1:8080"
+                      value={proxyForm.chat2ApiProxyBaseUrl}
+                      onChange={(e) => setProxyForm((prev) => ({ ...prev, chat2ApiProxyBaseUrl: e.target.value }))}
+                      disabled={loading || proxyLoading}
+                    />
+                    <p className="text-xs sm:text-sm text-text-muted">The upstream Chat2API server base URL, for example http://127.0.0.1:8080.</p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="font-medium text-sm sm:text-base">Chat2API API Key</label>
+                    <Input
+                      type="password"
+                      placeholder="sk-..."
+                      value={proxyForm.chat2ApiProxyApiKey}
+                      onChange={(e) => setProxyForm((prev) => ({ ...prev, chat2ApiProxyApiKey: e.target.value }))}
+                      disabled={loading || proxyLoading}
+                    />
+                    <p className="text-xs sm:text-sm text-text-muted">Optional, but used when your upstream proxy requires an API key.</p>
+                  </div>
+
+                  <Button type="submit" variant="primary" loading={proxyLoading} className="w-full sm:w-auto">
+                    Save Chat2API proxy
+                  </Button>
+                </div>
+              )}
+            </form>
 
             {proxyStatus.message && (
               <p className={`text-xs sm:text-sm ${proxyStatus.type === "error" ? "text-red-500" : "text-green-500"} pt-2 border-t border-border/50`}>

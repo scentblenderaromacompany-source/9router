@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { WebUIExecutor } from "./webui-base.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
 
 /**
  * DuckWebExecutor - Duck.ai (DuckDuckGo AI Chat) integration
@@ -190,6 +191,21 @@ export class DuckWebExecutor extends WebUIExecutor {
 
   // ============ Error handling ============
 
+  /**
+   * Parse tool calls from Duck.ai model output.
+   * Duck.ai has no native tool support; uses managed bracket protocol.
+   * @param {string} content - Model output text
+   * @param {Array} [tools] - Available tools for validation
+   * @returns {{content: string, toolCalls: Array}}
+   */
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, this._getProviderModelType());
+  }
+
+  _getProviderModelType() {
+    return 'default';
+  }
+
   handleWebError(response, status, logger) {
     let errMsg = `Duck.ai returned HTTP ${status}`;
     
@@ -208,6 +224,7 @@ export class DuckWebExecutor extends WebUIExecutor {
   // ============ Full execute override ============
 
   async execute({ model, body, stream, credentials, signal, log }) {
+    this._pendingTools = body?.tools || [];
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return this.errorResponse("Missing or empty messages array", 400);

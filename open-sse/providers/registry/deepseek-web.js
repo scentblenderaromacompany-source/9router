@@ -1,27 +1,18 @@
 /**
  * DeepSeek Web UI provider — native integration with chat.deepseek.com
  * Uses user token from browser to access DeepSeek models directly
- * Supports streaming, deep thinking, web search, vision, and tool use
- * 
- * Available Endpoints:
- * - POST /api/v0/chat/completion          - Send chat message (SSE streaming)
- * - POST /api/v0/chat_session/create      - Create new session
- * - POST /api/v0/chat_session/delete      - Delete session
- * - GET  /api/v0/chat/history_messages    - Get chat history
- * - POST /api/v0/chat/create_pow_challenge - Create PoW challenge
- * - POST /api/v0/file/upload_file         - Upload file
- * - GET  /api/v0/file/fetch_files         - Query file status
- * - POST /api/v0/file/fork_file_task      - Fork file task
- * - GET  /api/v0/client/settings          - Get model settings
- * - GET  /api/v0/users/me                 - Get current user info
- * - GET  /api/v0/users/settings           - Get user settings
- * - PUT  /api/v0/users/settings           - Update user settings
- * - GET  /api/v0/shared/conversations     - List shared conversations
- * - GET  /api/v0/shared/conversations/:id - Get shared conversation
- * - POST /api/v0/shared/conversations     - Share conversation
- * - GET  /api/v0/characters               - List characters
- * - GET  /api/v0/characters/:id           - Get character
- * - POST /api/v0/characters               - Create character
+ *
+ * Official model IDs from api.deepseek.com:
+ * - deepseek-v4-flash: DeepSeek V4 Flash (current flagship fast model)
+ * - deepseek-v4-pro: DeepSeek V4 Pro (current flagship pro model)
+ * - deepseek-chat: DeepSeek V3.2 Chat (deprecated 2026/07/24)
+ * - deepseek-reasoner: DeepSeek V3.2 Reasoner (deprecated 2026/07/24)
+ *
+ * Web UI model_type mapping:
+ * - model_type "default" → V4 Flash
+ * - model_type "expert" → V4 Pro
+ * - search_enabled: true → web search
+ * - thinking_enabled: true → reasoning mode
  */
 export default {
   id: "deepseek-web",
@@ -51,25 +42,21 @@ export default {
     format: "openai",
   },
   models: [
-    // DeepSeek V4 Flash models
-    { id: "deepseek-default", name: "DeepSeek V4 Flash", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-reasoner", name: "DeepSeek V4 Flash Reasoning", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-search", name: "DeepSeek V4 Flash Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-reasoner-search", name: "DeepSeek V4 Flash Reasoning+Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    
-    // DeepSeek V4 Pro models
-    { id: "deepseek-expert", name: "DeepSeek V4 Pro", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-expert-reasoner", name: "DeepSeek V4 Pro Reasoning", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-expert-search", name: "DeepSeek V4 Pro Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-expert-reasoner-search", name: "DeepSeek V4 Pro Reasoning+Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    
-    // DeepSeek Vision models
-    { id: "deepseek-vision", name: "DeepSeek Vision", capabilities: ["text", "vision", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-vision-reasoner", name: "DeepSeek Vision Reasoning", capabilities: ["text", "vision", "tools"], params: ["temperature", "max_tokens"] },
-    
-    // Legacy aliases
-    { id: "deepseek-web-chat", name: "DeepSeek Chat (Legacy)", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
-    { id: "deepseek-web-reasoner", name: "DeepSeek Reasoner (Legacy)", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    // V4 Flash models (model_type: "default")
+    { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-v4-flash-reasoner", name: "DeepSeek V4 Flash Reasoning", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-v4-flash-search", name: "DeepSeek V4 Flash Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-v4-flash-reasoner-search", name: "DeepSeek V4 Flash Reasoning+Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+
+    // V4 Pro models (model_type: "expert")
+    { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-v4-pro-reasoner", name: "DeepSeek V4 Pro Reasoning", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-v4-pro-search", name: "DeepSeek V4 Pro Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-v4-pro-reasoner-search", name: "DeepSeek V4 Pro Reasoning+Search", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+
+    // Legacy V3.2 models (still supported by web UI)
+    { id: "deepseek-chat", name: "DeepSeek V3.2 Chat", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
+    { id: "deepseek-reasoner", name: "DeepSeek V3.2 Reasoner", capabilities: ["text", "tools"], params: ["temperature", "max_tokens"] },
   ],
   passthroughModels: true,
   serviceKinds: ["llm"],

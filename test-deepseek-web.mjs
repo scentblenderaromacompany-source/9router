@@ -1,6 +1,11 @@
 /**
  * DeepSeek Web Integration Test Suite
  * Verifies that native DeepSeek Web support is working correctly
+ *
+ * Model IDs match official DeepSeek API:
+ * - deepseek-v4-flash, deepseek-v4-flash-reasoner, deepseek-v4-flash-search
+ * - deepseek-v4-pro, deepseek-v4-pro-reasoner, deepseek-v4-pro-search
+ * - deepseek-chat, deepseek-reasoner (legacy V3.2)
  */
 
 import { DeepSeekWebExecutor } from './open-sse/executors/deepseek-web.js';
@@ -35,60 +40,30 @@ try {
 console.log('\nTest 2: Build URL');
 try {
   const executor = new DeepSeekWebExecutor();
-  const url = executor.buildUrl('deepseek-default', true, 0, null);
+  const url = executor.buildUrl('deepseek-v4-flash', true, 0, null);
   assert(url === 'https://chat.deepseek.com/api/v0/chat/completion', 'Main endpoint correct');
 } catch (error) {
   console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 3: URL builders
-console.log('\nTest 3: URL Builders');
-try {
-  const executor = new DeepSeekWebExecutor();
-  // Chat endpoints
-  assert(executor.getChatSessionUrl().includes('/api/v0/chat_session/create'), 'Session create URL');
-  assert(executor.getDeleteSessionUrl().includes('/api/v0/chat_session/delete'), 'Session delete URL');
-  assert(executor.getHistoryUrl().includes('/api/v0/chat/history_messages'), 'History URL');
-  assert(executor.getPowChallengeUrl().includes('/api/v0/chat/create_pow_challenge'), 'PoW URL');
-  // File endpoints
-  assert(executor.getFileUploadUrl().includes('/api/v0/file/upload_file'), 'File upload URL');
-  assert(executor.getFileStatusUrl('test').includes('/api/v0/file/fetch_files'), 'File status URL');
-  assert(executor.getForkFileUrl().includes('/api/v0/file/fork_file_task'), 'Fork file URL');
-  // Settings
-  assert(executor.getSettingsUrl().includes('/api/v0/client/settings'), 'Settings URL');
-  // User endpoints
-  assert(executor.getUserMeUrl().includes('/api/v0/users/me'), 'User me URL');
-  assert(executor.getUserSettingsUrl().includes('/api/v0/users/settings'), 'User settings URL');
-  // Shared conversations
-  assert(executor.getSharedConversationsUrl().includes('/api/v0/shared/conversations'), 'Shared conversations URL');
-  assert(executor.getSharedConversationUrl('abc').includes('/api/v0/shared/conversations/abc'), 'Shared conversation by ID URL');
-  // Characters
-  assert(executor.getCharactersUrl().includes('/api/v0/characters'), 'Characters URL');
-  assert(executor.getCharacterUrl('abc').includes('/api/v0/characters/abc'), 'Character by ID URL');
-} catch (error) {
-  console.error('❌ Failed:', error.message);
-  process.exit(1);
-}
-
-// Test 4: Build headers with token
-console.log('\nTest 4: Build Headers');
+// Test 3: Build headers with token (uses FAKE_HEADERS now)
+console.log('\nTest 3: Build Headers');
 try {
   const executor = new DeepSeekWebExecutor();
   const headers = await executor.buildWebHeaders({ apiKey: 'test-token-12345' });
   assert(headers.Authorization === 'Bearer test-token-12345', 'Bearer token set');
   assert(headers['Content-Type'] === 'application/json', 'Content-Type set');
-  assert(headers['Accept'] === 'text/event-stream', 'Accept set');
   assert(headers.Origin === 'https://chat.deepseek.com', 'Origin set');
-  assert(headers['x-client-version'] === '2.0.2', 'Client version set');
-  assert(headers['x-client-platform'] === 'web', 'Client platform set');
+  assert(headers['X-Client-Version'] === '2.0.0', 'Client version set');
+  assert(headers['X-Client-Platform'] === 'web', 'Client platform set');
 } catch (error) {
   console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 5: Build headers without token
-console.log('\nTest 5: Build Headers (No Token)');
+// Test 4: Build headers without token
+console.log('\nTest 4: Build Headers (No Token)');
 try {
   const executor = new DeepSeekWebExecutor();
   const headers = await executor.buildWebHeaders(null);
@@ -98,8 +73,8 @@ try {
   process.exit(1);
 }
 
-// Test 6: Build prompt
-console.log('\nTest 6: Build Prompt');
+// Test 5: Build prompt with DeepSeek markers
+console.log('\nTest 5: Build Prompt (DeepSeek Markers)');
 try {
   const executor = new DeepSeekWebExecutor();
   const messages = [
@@ -109,17 +84,17 @@ try {
     { role: 'user', content: 'How are you?' }
   ];
   const prompt = executor.buildPrompt(messages);
-  assert(prompt.includes('[System] You are helpful.'), 'System message');
-  assert(prompt.includes('Hi'), 'User message');
-  assert(prompt.includes('[Assistant] Hello!'), 'Assistant message');
-  assert(prompt.includes('How are you?'), 'Last user message');
+  assert(prompt.includes('You are helpful.'), 'System message (no prefix)');
+  assert(prompt.includes('<｜User｜>Hi'), 'User message with marker');
+  assert(prompt.includes('<｜Assistant｜>Hello!<｜end of sentence｜>'), 'Assistant message with markers');
+  assert(prompt.includes('<｜User｜>How are you?'), 'Last user message with marker');
 } catch (error) {
   console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 7: Build prompt with array content
-console.log('\nTest 7: Build Prompt (Array Content)');
+// Test 6: Build prompt with array content
+console.log('\nTest 6: Build Prompt (Array Content)');
 try {
   const executor = new DeepSeekWebExecutor();
   const messages = [
@@ -129,72 +104,120 @@ try {
     ]}
   ];
   const prompt = executor.buildPrompt(messages);
-  assert(prompt.includes('Hello World'), 'Array content joined');
+  assert(prompt.includes('Hello') && prompt.includes('World'), 'Array content joined');
 } catch (error) {
   console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 8: Build payload
-console.log('\nTest 8: Build Payload');
+// Test 7: Build payload
+console.log('\nTest 7: Build Payload');
 try {
   const executor = new DeepSeekWebExecutor();
   const messages = [{ role: 'user', content: 'Test' }];
   const credentials = { apiKey: 'test-token' };
-  
+
   // Mock session creation by setting directly
-  executor.sessions.set('test-token', 'mock-session-id');
+  executor.sessionCache.set('test-token', { sessionId: 'mock-session-id', createdAt: Date.now() });
   executor.parentMessageIds.set('test-token', null);
-  
-  const payload = await executor.buildWebPayload('deepseek-default', messages, true, credentials);
-  assert(payload.prompt === 'Test', 'Prompt set');
-  assert(payload.model === 'default', 'Model set');
-  assert(payload.stream === true, 'Stream set');
+
+  const payload = await executor.buildWebPayload('deepseek-v4-flash', messages, true, credentials);
+  assert(payload.prompt === 'Test', 'Prompt for single user message (no marker at index 0)');
+  assert(payload.model_type === 'default', 'model_type is default for v4-flash');
   assert(payload.chat_session_id === 'mock-session-id', 'Session ID set');
   assert(payload.ref_file_ids !== undefined, 'ref_file_ids present');
-  assert(payload.search_enabled !== undefined, 'search_enabled present');
-  assert(payload.thinking_enabled !== undefined, 'thinking_enabled present');
+  assert(payload.search_enabled === false, 'search_enabled false for base model');
+  assert(payload.thinking_enabled === false, 'thinking_enabled false for base model');
+  assert(payload.preempt === false, 'preempt false');
 } catch (error) {
   console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 9: Model mapping
-console.log('\nTest 9: Model Mapping');
+// Test 8: Model mapping — V4 Flash models
+console.log('\nTest 8: Model Mapping (V4 Flash)');
 try {
   const executor = new DeepSeekWebExecutor();
   const models = [
-    { input: 'deepseek-default', expected: 'default' },
-    { input: 'deepseek-reasoner', expected: 'reasoner' },
-    { input: 'deepseek-search', expected: 'search' },
-    { input: 'deepseek-expert', expected: 'expert' },
-    { input: 'deepseek-expert-reasoner', expected: 'expert-reasoner' },
-    { input: 'deepseek-vision', expected: 'vision' },
-    { input: 'deepseek-web-chat', expected: 'default' },
-    { input: 'deepseek-web-reasoner', expected: 'reasoner' },
+    { input: 'deepseek-v4-flash', expectedType: 'default', expectSearch: false, expectThink: false },
+    { input: 'deepseek-v4-flash-reasoner', expectedType: 'default', expectSearch: false, expectThink: true },
+    { input: 'deepseek-v4-flash-search', expectedType: 'default', expectSearch: true, expectThink: false },
+    { input: 'deepseek-v4-flash-reasoner-search', expectedType: 'default', expectSearch: true, expectThink: true },
   ];
-  
-  for (const { input, expected } of models) {
+
+  executor.sessionCache.set('test', { sessionId: 's', createdAt: Date.now() });
+
+  for (const { input, expectedType, expectSearch, expectThink } of models) {
     const messages = [{ role: 'user', content: 'test' }];
     const payload = await executor.buildWebPayload(input, messages, true, { apiKey: 'test' });
-    assert(payload.model === expected, `${input} → ${expected}`);
+    assert(payload.model_type === expectedType, `${input} → model_type=${expectedType}`);
+    assert(payload.search_enabled === expectSearch, `${input} → search_enabled=${expectSearch}`);
+    assert(payload.thinking_enabled === expectThink, `${input} → thinking_enabled=${expectThink}`);
   }
 } catch (error) {
   console.error('❌ Failed:', error.message);
   process.exit(1);
 }
 
-// Test 10: Session management
-console.log('\nTest 10: Session Management');
+// Test 9: Model mapping — V4 Pro models
+console.log('\nTest 9: Model Mapping (V4 Pro)');
+try {
+  const executor = new DeepSeekWebExecutor();
+  const models = [
+    { input: 'deepseek-v4-pro', expectedType: 'expert', expectSearch: false, expectThink: false },
+    { input: 'deepseek-v4-pro-reasoner', expectedType: 'expert', expectSearch: false, expectThink: true },
+    { input: 'deepseek-v4-pro-search', expectedType: 'expert', expectSearch: true, expectThink: false },
+    { input: 'deepseek-v4-pro-reasoner-search', expectedType: 'expert', expectSearch: true, expectThink: true },
+  ];
+
+  executor.sessionCache.set('test', { sessionId: 's', createdAt: Date.now() });
+
+  for (const { input, expectedType, expectSearch, expectThink } of models) {
+    const messages = [{ role: 'user', content: 'test' }];
+    const payload = await executor.buildWebPayload(input, messages, true, { apiKey: 'test' });
+    assert(payload.model_type === expectedType, `${input} → model_type=${expectedType}`);
+    assert(payload.search_enabled === expectSearch, `${input} → search_enabled=${expectSearch}`);
+    assert(payload.thinking_enabled === expectThink, `${input} → thinking_enabled=${expectThink}`);
+  }
+} catch (error) {
+  console.error('❌ Failed:', error.message);
+  process.exit(1);
+}
+
+// Test 10: Model mapping — Legacy V3.2
+console.log('\nTest 10: Model Mapping (Legacy V3.2)');
+try {
+  const executor = new DeepSeekWebExecutor();
+  const models = [
+    { input: 'deepseek-chat', expectedType: 'default', expectSearch: false, expectThink: false },
+    { input: 'deepseek-reasoner', expectedType: 'default', expectSearch: false, expectThink: true },
+  ];
+
+  executor.sessionCache.set('test', { sessionId: 's', createdAt: Date.now() });
+
+  for (const { input, expectedType, expectSearch, expectThink } of models) {
+    const messages = [{ role: 'user', content: 'test' }];
+    const payload = await executor.buildWebPayload(input, messages, true, { apiKey: 'test' });
+    assert(payload.model_type === expectedType, `${input} → model_type=${expectedType}`);
+    assert(payload.search_enabled === expectSearch, `${input} → search_enabled=${expectSearch}`);
+    assert(payload.thinking_enabled === expectThink, `${input} → thinking_enabled=${expectThink}`);
+  }
+} catch (error) {
+  console.error('❌ Failed:', error.message);
+  process.exit(1);
+}
+
+// Test 11: Session management
+console.log('\nTest 11: Session Management');
 try {
   const executor = new DeepSeekWebExecutor();
   const credentials = { apiKey: 'test-token' };
-  
+
   assert(executor.getParentMessageId(credentials) === null, 'Initial parent ID is null');
-  
+
   executor.updateParentMessageId(credentials, 'msg-123');
   assert(executor.getParentMessageId(credentials) === 'msg-123', 'Parent ID updated');
-  
+
   executor.clearSession(credentials);
   assert(executor.getParentMessageId(credentials) === null, 'Session cleared');
 } catch (error) {
@@ -202,8 +225,8 @@ try {
   process.exit(1);
 }
 
-// Test 11: SSE chunk helper
-console.log('\nTest 11: SSE Chunk');
+// Test 12: SSE chunk helper
+console.log('\nTest 12: SSE Chunk');
 try {
   const executor = new DeepSeekWebExecutor();
   const chunk = executor.sseChunk({ id: 'test', content: 'hello' });
@@ -216,8 +239,8 @@ try {
   process.exit(1);
 }
 
-// Test 12: Error response
-console.log('\nTest 12: Error Response');
+// Test 13: Error response
+console.log('\nTest 13: Error Response');
 try {
   const executor = new DeepSeekWebExecutor();
   const resp = executor.errorResponse('Test error', 400);
@@ -230,8 +253,8 @@ try {
   process.exit(1);
 }
 
-// Test 13: Handle web error messages
-console.log('\nTest 13: Error Messages');
+// Test 14: Handle web error messages
+console.log('\nTest 14: Error Messages');
 try {
   const executor = new DeepSeekWebExecutor();
   const errors = [
@@ -242,7 +265,7 @@ try {
     { status: 400, expected: 'bad request' },
     { status: 500, expected: 'server error' },
   ];
-  
+
   for (const { status, expected } of errors) {
     const resp = executor.handleWebError({ status }, status, null);
     const body = await resp.response.json();
@@ -253,20 +276,26 @@ try {
   process.exit(1);
 }
 
-// Test 14: Provider registry
-console.log('\nTest 14: Provider Registry');
+// Test 15: Provider registry
+console.log('\nTest 15: Provider Registry');
 try {
   const registry = (await import('./open-sse/providers/registry/deepseek-web.js')).default;
   assert(registry.id === 'deepseek-web', 'Provider ID');
   assert(registry.category === 'webCookie', 'Category');
   assert(registry.authType === 'cookie', 'Auth type');
-  assert(registry.models.length >= 12, 'Has all models');
-  
+  assert(registry.models.length >= 10, 'Has all models');
+
   const modelIds = registry.models.map(m => m.id);
-  assert(modelIds.includes('deepseek-default'), 'Has deepseek-default');
-  assert(modelIds.includes('deepseek-reasoner'), 'Has deepseek-reasoner');
-  assert(modelIds.includes('deepseek-expert'), 'Has deepseek-expert');
-  assert(modelIds.includes('deepseek-vision'), 'Has deepseek-vision');
+  assert(modelIds.includes('deepseek-v4-flash'), 'Has deepseek-v4-flash');
+  assert(modelIds.includes('deepseek-v4-flash-reasoner'), 'Has deepseek-v4-flash-reasoner');
+  assert(modelIds.includes('deepseek-v4-flash-search'), 'Has deepseek-v4-flash-search');
+  assert(modelIds.includes('deepseek-v4-pro'), 'Has deepseek-v4-pro');
+  assert(modelIds.includes('deepseek-v4-pro-reasoner'), 'Has deepseek-v4-pro-reasoner');
+  assert(modelIds.includes('deepseek-chat'), 'Has deepseek-chat (legacy)');
+  assert(modelIds.includes('deepseek-reasoner'), 'Has deepseek-reasoner (legacy)');
+  assert(!modelIds.includes('deepseek-default'), 'No stale deepseek-default');
+  assert(!modelIds.includes('deepseek-expert'), 'No stale deepseek-expert');
+  assert(!modelIds.includes('deepseek-vision'), 'No stale deepseek-vision');
 } catch (error) {
   console.error('❌ Failed:', error.message);
   process.exit(1);

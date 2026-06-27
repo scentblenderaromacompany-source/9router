@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { WebUIExecutor } from "./webui-base.js";
 import { PROVIDERS } from "../config/providers.js";
+import { createToolCallState, processStreamContent, flushToolCallBuffer, createBaseChunk } from "../utils/toolCalling/streamToolHandler.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
 
 const KIMI_API = "https://kimi.com";
 const KIMI_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36";
@@ -194,8 +196,10 @@ export class KimiWebExecutor extends WebUIExecutor {
       payload.thinking = { type: "enabled" };
     }
 
-    // Add search if model includes search
-    if (model.includes("search")) {
+    // Preserve native builtin_function tools (e.g. $web_search) or client-provided tools
+    if (this._pendingTools && this._pendingTools.length > 0) {
+      payload.tools = this._pendingTools;
+    } else if (model.includes("search")) {
       payload.tools = [{ type: "builtin_function", function: { name: "$web_search" } }];
     }
 
@@ -544,6 +548,7 @@ export class KimiWebExecutor extends WebUIExecutor {
   // ============ Main Execute ============
 
   async execute({ model, body, stream, credentials, signal, log }) {
+    this._pendingTools = body?.tools || [];
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return this.errorResponse("Missing or empty messages array", 400);
@@ -652,9 +657,14 @@ export class KimiWebExecutor extends WebUIExecutor {
   buildStreamingResponse(responseBody, model, cid, created, signal, credentials) {
     const encoder = new TextEncoder();
     const self = this;
+    const useToolParser = this._pendingTools?.length > 0;
+    const toolState = useToolParser ? createToolCallState() : null;
+    const baseChunk = useToolParser ? createBaseChunk(cid, model, created) : null;
+    const modelType = useToolParser ? this._getProviderModelType() : 'default';
     
     return new ReadableStream({
       async start(controller) {
+        let isFirstContentChunk = true;
         try {
           controller.enqueue(encoder.encode(self.sseChunk({
             id: cid,
@@ -697,24 +707,40 @@ export class KimiWebExecutor extends WebUIExecutor {
             if (chunk.done) break;
             
             if (chunk.delta) {
-              controller.enqueue(encoder.encode(self.sseChunk({
-                id: cid,
-                object: "chat.completion.chunk",
-                created,
-                model,
-                system_fingerprint: null,
-                choices: [{ index: 0, delta: { content: chunk.delta }, finish_reason: null, logprobs: null }],
-              })));
+              if (useToolParser) {
+                const { chunks: toolChunks } = processStreamContent(chunk.delta, toolState, baseChunk, isFirstContentChunk, modelType);
+                isFirstContentChunk = false;
+                for (const tc of toolChunks) {
+                  controller.enqueue(encoder.encode(self.sseChunk(tc)));
+                }
+              } else {
+                controller.enqueue(encoder.encode(self.sseChunk({
+                  id: cid,
+                  object: "chat.completion.chunk",
+                  created,
+                  model,
+                  system_fingerprint: null,
+                  choices: [{ index: 0, delta: { content: chunk.delta }, finish_reason: null, logprobs: null }],
+                })));
+              }
             }
           }
           
+          if (useToolParser) {
+            const flushChunks = flushToolCallBuffer(toolState, baseChunk, modelType);
+            for (const tc of flushChunks) {
+              controller.enqueue(encoder.encode(self.sseChunk(tc)));
+            }
+          }
+          
+          const finishReason = useToolParser && toolState?.hasEmittedToolCall ? "tool_calls" : "stop";
           controller.enqueue(encoder.encode(self.sseChunk({
             id: cid,
             object: "chat.completion.chunk",
             created,
             model,
             system_fingerprint: null,
-            choices: [{ index: 0, delta: {}, finish_reason: "stop", logprobs: null }],
+            choices: [{ index: 0, delta: {}, finish_reason: finishReason, logprobs: null }],
           })));
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (err) {
@@ -738,6 +764,7 @@ export class KimiWebExecutor extends WebUIExecutor {
     let fullContent = "";
     const thinkingParts = [];
     let messageId = null;
+    const useToolParser = this._pendingTools?.length > 0;
     
     for await (const chunk of this.parseWebStream(responseBody, model, signal)) {
       if (chunk.error) {
@@ -758,6 +785,17 @@ export class KimiWebExecutor extends WebUIExecutor {
     
     const msg = { role: "assistant", content: fullContent };
     if (thinkingParts.length > 0) msg.reasoning_content = thinkingParts.join("\n");
+    
+    if (useToolParser && fullContent) {
+      const { content: cleanContent, toolCalls } = parseToolCallsFromText(fullContent, this._getProviderModelType());
+      if (toolCalls.length > 0) {
+        return new Response(JSON.stringify({
+          id: cid, object: "chat.completion", created, model, system_fingerprint: null,
+          choices: [{ index: 0, message: { role: "assistant", content: cleanContent || null, tool_calls: toolCalls }, finish_reason: "tool_calls", logprobs: null }],
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+    }
     
     const promptTokens = Math.ceil(fullContent.length / 4);
     const completionTokens = Math.ceil(fullContent.length / 4);
@@ -878,6 +916,21 @@ export class KimiWebExecutor extends WebUIExecutor {
   }
 
   // ============ Error Handling ============
+
+  /**
+   * Parse tool calls from Kimi model output.
+   * Kimi uses bracket protocol for managed tool calling.
+   * @param {string} content - Model output text
+   * @param {Array} [tools] - Available tools for validation
+   * @returns {{content: string, toolCalls: Array}}
+   */
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, this._getProviderModelType());
+  }
+
+  _getProviderModelType() {
+    return 'kimi';
+  }
 
   handleWebError(response, status, logger) {
     let errMsg = `Kimi returned HTTP ${status}`;

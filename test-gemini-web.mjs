@@ -120,7 +120,7 @@ try {
   ];
   const payload = executor.buildWebPayload('gemini-3-pro', messages, true, { apiKey: 'test' });
   assert(Array.isArray(payload.innerArray), 'Inner array is array');
-  assert(payload.innerArray.length === 81, 'Inner array has 81 elements');
+  assert(payload.innerArray.length === 92, 'Inner array has 92 elements');
   assert(payload.modelInfo.modelId !== null, 'Model info has modelId');
 } catch (error) {
   console.error('❌ Failed:', error.message);

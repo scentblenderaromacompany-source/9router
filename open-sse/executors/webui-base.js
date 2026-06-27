@@ -2,6 +2,12 @@ import crypto from "crypto";
 import { BaseExecutor } from "./base.js";
 import { SSE_DONE, SSE_HEADERS_NO_BUFFER } from "../utils/sseConstants.js";
 import { sseChunk } from "../utils/sse.js";
+import { ToolCallingEngine } from "../utils/toolCalling/index.js";
+import { ContextManager } from "../utils/contextManager.js";
+import { createSession, getSessionContext, updateSession } from "../utils/sessionManager.js";
+import { createToolCallState, processStreamContent, flushToolCallBuffer, createBaseChunk } from "../utils/toolCalling/streamToolHandler.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
+import { generateToolPrompt } from "../utils/toolCalling/promptGenerator.js";
 
 /**
  * WebUIExecutor - Base class for web UI proxy executors
@@ -19,12 +25,15 @@ export class WebUIExecutor extends BaseExecutor {
   constructor(providerId, config) {
     super(providerId, config);
     this.providerId = providerId;
+    this.toolEngine = new ToolCallingEngine();
+    this.contextManager = new ContextManager(config?.contextManagement || {});
   }
 
   /**
    * Execute a web UI API request
    */
   async execute({ model, body, stream, credentials, signal, log }) {
+    this._pendingTools = body?.tools || [];
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return this.errorResponse("Missing or empty messages array", 400);
@@ -90,14 +99,117 @@ export class WebUIExecutor extends BaseExecutor {
   }
 
   /**
-   * Build streaming response from web API stream
+   * Execute a request with tool calling support.
+   * Handles tool normalization, context management, prompt injection, and tool call parsing.
+   *
+   * @param {string} model - Model ID
+   * @param {Array} messages - OpenAI messages array
+   * @param {Array} [tools] - OpenAI tools array
+   * @param {string} [tool_choice] - Tool choice mode
+   * @param {boolean} stream - Whether to stream
+   * @param {object} credentials - User credentials
+   * @param {AbortSignal} signal - Abort signal
+   * @param {object} [log] - Logger
+   * @returns {Promise<object>} Response with potential tool_calls
    */
-  buildStreamingResponse(responseBody, model, cid, created, signal) {
+  async executeWithTools(model, messages, tools, tool_choice, stream, credentials, signal, log) {
+    const normalizedTools = (tools || []).filter(t => t && (t.function || t.type === "builtin_function"));
+
+    if (normalizedTools.length === 0) {
+      return this.execute({ model, body: { messages }, stream, credentials, signal, log });
+    }
+
+    const modelType = this._getProviderModelType();
+    const toolPrompt = generateToolPrompt(normalizedTools, 'bracket');
+
+    // Inject tool prompt into messages
+    const preparedMessages = messages.map((msg, i) => {
+      if (i === 0 && (msg.role === "system" || msg.role === "developer")) {
+        return { ...msg, content: `${typeof msg.content === "string" ? msg.content : ""}\n\n${toolPrompt}` };
+      }
+      return msg;
+    });
+    if (!preparedMessages.length || (preparedMessages[0].role !== "system" && preparedMessages[0].role !== "developer")) {
+      preparedMessages.unshift({ role: "system", content: toolPrompt });
+    }
+
+    log?.info?.(
+      this.providerId.toUpperCase(),
+      `Tool calling: managed mode, tools=${normalizedTools.length}`
+    );
+
+    this._pendingTools = normalizedTools;
+    const result = await this.execute({
+      model,
+      body: { messages: preparedMessages, tool_choice },
+      stream,
+      credentials,
+      signal,
+      log,
+    });
+
+    if (!result?.response) {
+      return result;
+    }
+
+    const contentType = result.response.headers?.get?.("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      try {
+        const clone = result.response.clone();
+        const respBody = await clone.json();
+        const content = respBody?.choices?.[0]?.message?.content || "";
+        if (content) {
+          const { content: cleanContent, toolCalls } = parseToolCallsFromText(content, modelType);
+          if (toolCalls.length > 0) {
+            const cid = respBody.id || `chatcmpl-${this.providerId}-${crypto.randomUUID().slice(0, 12)}`;
+            const created = respBody.created || Math.floor(Date.now() / 1000);
+            const toolResponse = {
+              id: cid,
+              object: "chat.completion",
+              created,
+              model,
+              system_fingerprint: null,
+              choices: [{
+                index: 0,
+                message: { role: "assistant", content: cleanContent || null, tool_calls: toolCalls },
+                finish_reason: "tool_calls",
+                logprobs: null,
+              }],
+              usage: respBody.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+            };
+            return { ...result, response: new Response(JSON.stringify(toolResponse), { status: 200, headers: { "Content-Type": "application/json" } }) };
+          }
+        }
+      } catch {
+        // Not JSON or parse error, return as-is
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Build streaming response from web API stream
+   * @param {ReadableStream} responseBody - Raw response body
+   * @param {string} model - Model ID
+   * @param {string} cid - Chat completion ID
+   * @param {number} created - Created timestamp
+   * @param {AbortSignal} signal - Abort signal
+   * @param {object} [toolStreamParser] - Optional tool stream parser config {enabled, protocol, tools, toolEngine}
+   */
+  buildStreamingResponse(responseBody, model, cid, created, signal, toolStreamParser) {
     const encoder = new TextEncoder();
     const providerId = this.providerId;
+    const useToolParser = this._pendingTools?.length > 0;
+    const toolState = useToolParser ? createToolCallState() : null;
+    const baseChunk = useToolParser ? createBaseChunk(cid, model, created) : null;
+    const modelType = useToolParser ? this._getProviderModelType() : 'default';
     
     return new ReadableStream({
       async start(controller) {
+        let accumulatedContent = "";
+        let isFirstContentChunk = true;
         try {
           // Send initial role chunk
           controller.enqueue(encoder.encode(sseChunk({
@@ -138,25 +250,42 @@ export class WebUIExecutor extends BaseExecutor {
             if (chunk.done) break;
             
             if (chunk.delta) {
-              controller.enqueue(encoder.encode(sseChunk({
-                id: cid,
-                object: "chat.completion.chunk",
-                created,
-                model,
-                system_fingerprint: null,
-                choices: [{ index: 0, delta: { content: chunk.delta }, finish_reason: null, logprobs: null }],
-              })));
+              if (useToolParser) {
+                const { chunks: toolChunks } = processStreamContent(chunk.delta, toolState, baseChunk, isFirstContentChunk, modelType);
+                isFirstContentChunk = false;
+                for (const tc of toolChunks) {
+                  controller.enqueue(encoder.encode(sseChunk(tc)));
+                }
+              } else {
+                controller.enqueue(encoder.encode(sseChunk({
+                  id: cid,
+                  object: "chat.completion.chunk",
+                  created,
+                  model,
+                  system_fingerprint: null,
+                  choices: [{ index: 0, delta: { content: chunk.delta }, finish_reason: null, logprobs: null }],
+                })));
+              }
+            }
+          }
+          
+          // Flush remaining tool call buffer
+          if (useToolParser) {
+            const flushChunks = flushToolCallBuffer(toolState, baseChunk, modelType);
+            for (const tc of flushChunks) {
+              controller.enqueue(encoder.encode(sseChunk(tc)));
             }
           }
           
           // Send final chunk
+          const finishReason = useToolParser && toolState?.hasEmittedToolCall ? "tool_calls" : "stop";
           controller.enqueue(encoder.encode(sseChunk({
             id: cid,
             object: "chat.completion.chunk",
             created,
             model,
             system_fingerprint: null,
-            choices: [{ index: 0, delta: {}, finish_reason: "stop", logprobs: null }],
+            choices: [{ index: 0, delta: {}, finish_reason: finishReason, logprobs: null }],
           })));
           controller.enqueue(encoder.encode(SSE_DONE));
         } catch (err) {
@@ -178,10 +307,17 @@ export class WebUIExecutor extends BaseExecutor {
 
   /**
    * Build non-streaming response from web API stream
+   * @param {ReadableStream} responseBody - Raw response body
+   * @param {string} model - Model ID
+   * @param {string} cid - Chat completion ID
+   * @param {number} created - Created timestamp
+   * @param {AbortSignal} signal - Abort signal
+   * @param {object} [toolParserConfig] - Optional tool parser config {protocol, tools}
    */
-  async buildNonStreamingResponse(responseBody, model, cid, created, signal) {
+  async buildNonStreamingResponse(responseBody, model, cid, created, signal, toolParserConfig) {
     let fullContent = "";
     const thinkingParts = [];
+    const useToolParser = this._pendingTools?.length > 0;
     
     for await (const chunk of this.parseWebStream(responseBody, model, signal)) {
       if (chunk.error) {
@@ -197,6 +333,29 @@ export class WebUIExecutor extends BaseExecutor {
     
     const msg = { role: "assistant", content: fullContent };
     if (thinkingParts.length > 0) msg.reasoning_content = thinkingParts.join("\n");
+    
+    // Check for tool calls in accumulated content
+    if (useToolParser && fullContent) {
+      const modelType = this._getProviderModelType();
+      const { content: cleanContent, toolCalls } = parseToolCallsFromText(fullContent, modelType);
+      if (toolCalls.length > 0) {
+        const toolResponse = {
+          id: cid,
+          object: "chat.completion",
+          created,
+          model,
+          system_fingerprint: null,
+          choices: [{
+            index: 0,
+            message: { role: "assistant", content: cleanContent || null, tool_calls: toolCalls },
+            finish_reason: "tool_calls",
+            logprobs: null,
+          }],
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        };
+        return new Response(JSON.stringify(toolResponse), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+    }
     
     const promptTokens = Math.ceil(fullContent.length / 4);
     const completionTokens = Math.ceil(fullContent.length / 4);
@@ -260,6 +419,16 @@ export class WebUIExecutor extends BaseExecutor {
       error: { message, type: "upstream_error", code: `${this.providerId.toUpperCase()}_ERROR` },
     }), { status, headers: { "Content-Type": "application/json" } });
     return { response: resp, url: "", headers: {}, transformedBody: {} };
+  }
+
+  // ============ Tool calling helpers for subclasses ============
+
+  /**
+   * Get provider-specific model type for tool parsing
+   * @returns {string} Model type identifier for parseToolCallsFromText
+   */
+  _getProviderModelType() {
+    return 'default';
   }
 
   // ============ Methods to override in subclasses ============

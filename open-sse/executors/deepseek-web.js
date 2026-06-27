@@ -1,69 +1,87 @@
 import crypto from "crypto";
 import { WebUIExecutor } from "./webui-base.js";
 import { PROVIDERS } from "../config/providers.js";
+import { createToolCallState, processStreamContent, flushToolCallBuffer, createBaseChunk } from "../utils/toolCalling/streamToolHandler.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
+import { getDeepSeekHash } from "../lib/deepseek/challenge.js";
 
 const DEEPSEEK_API = "https://chat.deepseek.com";
-const DEEPSEEK_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const DEEPSEEK_CLIENT_VERSION = "2.0.2";
+
+const FAKE_HEADERS = {
+  Accept: "*/*",
+  "Accept-Encoding": "gzip, deflate, br, zstd",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Content-Type": "application/json",
+  Origin: DEEPSEEK_API,
+  Referer: `${DEEPSEEK_API}/`,
+  "Sec-Ch-Ua": '"Not/A)Brand";v="99", "Chromium";v="120"',
+  "Sec-Ch-Ua-Mobile": "?0",
+  "Sec-Ch-Ua-Platform": '"macOS"',
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-origin",
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "X-App-Version": "2.0.0",
+  "X-Client-Locale": "en_US",
+  "X-Client-Platform": "web",
+  "X-Client-Timezone-Offset": "0",
+  "X-Client-Version": "2.0.0",
+};
 
 const MODEL_MAP = {
-  // DeepSeek V4 Flash models
-  "deepseek-default": { mode: "default", name: "DeepSeek V4 Flash" },
-  "deepseek-reasoner": { mode: "reasoner", name: "DeepSeek V4 Flash Reasoning" },
-  "deepseek-search": { mode: "search", name: "DeepSeek V4 Flash Search" },
-  "deepseek-reasoner-search": { mode: "reasoner-search", name: "DeepSeek V4 Flash Reasoning+Search" },
-  
-  // DeepSeek V4 Pro models
-  "deepseek-expert": { mode: "expert", name: "DeepSeek V4 Pro" },
-  "deepseek-expert-reasoner": { mode: "expert-reasoner", name: "DeepSeek V4 Pro Reasoning" },
-  "deepseek-expert-search": { mode: "expert-search", name: "DeepSeek V4 Pro Search" },
-  "deepseek-expert-reasoner-search": { mode: "expert-reasoner-search", name: "DeepSeek V4 Pro Reasoning+Search" },
-  
-  // DeepSeek Vision models
-  "deepseek-vision": { mode: "vision", name: "DeepSeek Vision" },
-  "deepseek-vision-reasoner": { mode: "vision-reasoner", name: "DeepSeek Vision Reasoning" },
-  
-  // Legacy aliases
-  "deepseek-web-chat": { mode: "default", name: "DeepSeek Chat (Legacy)" },
-  "deepseek-web-reasoner": { mode: "reasoner", name: "DeepSeek Reasoner (Legacy)" },
+  // V4 Flash models (model_type: "default")
+  "deepseek-v4-flash": { modelType: "default", name: "DeepSeek V4 Flash" },
+  "deepseek-v4-flash-reasoner": { modelType: "default", name: "DeepSeek V4 Flash Reasoning" },
+  "deepseek-v4-flash-search": { modelType: "default", name: "DeepSeek V4 Flash Search" },
+  "deepseek-v4-flash-reasoner-search": { modelType: "default", name: "DeepSeek V4 Flash Reasoning+Search" },
+
+  // V4 Pro models (model_type: "expert")
+  "deepseek-v4-pro": { modelType: "expert", name: "DeepSeek V4 Pro" },
+  "deepseek-v4-pro-reasoner": { modelType: "expert", name: "DeepSeek V4 Pro Reasoning" },
+  "deepseek-v4-pro-search": { modelType: "expert", name: "DeepSeek V4 Pro Search" },
+  "deepseek-v4-pro-reasoner-search": { modelType: "expert", name: "DeepSeek V4 Pro Reasoning+Search" },
+
+  // Legacy V3.2 models (still supported by web UI)
+  "deepseek-chat": { modelType: "default", name: "DeepSeek V3.2 Chat" },
+  "deepseek-reasoner": { modelType: "default", name: "DeepSeek V3.2 Reasoner" },
 };
+
+function generateRandomString(length, charset = "alphanumeric") {
+  const sets = {
+    numeric: "0123456789",
+    alphabetic: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+    alphanumeric: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+    hex: "0123456789abcdef",
+  };
+  const chars = sets[charset] || sets.alphanumeric;
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+function uuid() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function generateCookie() {
+  const timestamp = Date.now();
+  return `intercom-HWWAFSESTIME=${timestamp}; HWWAFSESID=${generateRandomString(18, "hex")}; Hm_lvt_${uuid()}=${Math.floor(timestamp / 1000)},${Math.floor(timestamp / 1000)},${Math.floor(timestamp / 1000)}; Hm_lpvt_${uuid()}=${Math.floor(timestamp / 1000)}; _frid=${uuid()}; _fr_ssid=${uuid()}; _fr_pvid=${uuid()}`;
+}
 
 /**
  * DeepSeek Web Executor - Direct web API integration
- * 
- * This executor communicates directly with DeepSeek's web interface,
- * using USER_TOKEN from browser local storage for authentication.
- * 
- * Complete API Endpoints:
- * - POST /api/v0/chat/completion          - Send chat message (SSE streaming)
- * - POST /api/v0/chat_session/create      - Create new session
- * - POST /api/v0/chat_session/delete      - Delete session
- * - GET  /api/v0/chat/history_messages    - Get chat history
- * - POST /api/v0/chat/create_pow_challenge - Create PoW challenge
- * - POST /api/v0/file/upload_file         - Upload file
- * - GET  /api/v0/file/fetch_files         - Query file status
- * - POST /api/v0/file/fork_file_task      - Fork file task
- * - GET  /api/v0/client/settings          - Get model settings
- * - GET  /api/v0/users/me                 - Get current user info
- * - GET  /api/v0/users/settings           - Get user settings
- * - PUT  /api/v0/users/settings           - Update user settings
- * - GET  /api/v0/shared/conversations     - List shared conversations
- * - GET  /api/v0/shared/conversations/:id - Get shared conversation
- * - POST /api/v0/shared/conversations     - Share conversation
- * - GET  /api/v0/characters               - List characters
- * - GET  /api/v0/characters/:id           - Get character
- * - POST /api/v0/characters               - Create character
- * 
- * Features:
- * - Session management with conversation tracking
- * - Proof of Work (PoW) handling
- * - Tool calling support via DSML prompt injection
- * - Deep thinking (reasoning) support
- * - File upload support
- * - Streaming SSE responses
- * 
- * IMPORTANT: Requires a valid USER_TOKEN from chat.deepseek.com.
- * Get it from: F12 → Application → Local Storage → chat.deepseek.com → USER_TOKEN
+ *
+ * Uses USER_TOKEN from browser local storage for authentication.
+ * Implements token exchange, PoW challenge solving, and DeepSeek-specific
+ * prompt format with <｜User｜>/<｜Assistant｜> markers.
+ *
+ * Get token from: F12 → Application → Local Storage → chat.deepseek.com → USER_TOKEN
  */
 export class DeepSeekWebExecutor extends WebUIExecutor {
   constructor() {
@@ -73,7 +91,117 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     });
     this.sessions = new Map();
     this.parentMessageIds = new Map();
-    this.powChallenges = new Map();
+    this.tokenCache = new Map();
+    this.sessionCache = new Map();
+  }
+
+  // ============ Token Exchange ============
+
+  async acquireToken(userToken) {
+    if (!userToken) {
+      throw new Error("DeepSeek USER_TOKEN not configured");
+    }
+
+    const cached = this.tokenCache.get(userToken);
+    if (cached && cached.expiresAt > Math.floor(Date.now() / 1000)) {
+      return cached.accessToken;
+    }
+
+    const headers = {
+      ...FAKE_HEADERS,
+      Authorization: `Bearer ${userToken}`,
+    };
+    delete headers["Content-Type"];
+
+    const response = await fetch(`${DEEPSEEK_API}/api/v0/users/current`, {
+      method: "GET",
+      headers,
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data = await response.json();
+
+    // API returns HTTP 200 with error code in body
+    if (data.code === 40003 || data.code === 401 || data.code === 403) {
+      throw new Error("DeepSeek token invalid or expired — update your USER_TOKEN");
+    }
+
+    if (data.code !== 0 && data.code !== undefined) {
+      throw new Error(`Failed to acquire DeepSeek token: ${data.msg || "unknown error"}`);
+    }
+
+    const bizData = data?.data?.biz_data || data?.biz_data;
+    if (!bizData?.token) {
+      const errorMsg = data?.msg || data?.data?.biz_msg || "No token in response";
+      throw new Error(`Failed to acquire DeepSeek token: ${errorMsg}`);
+    }
+
+    const accessToken = bizData.token;
+    this.tokenCache.set(userToken, {
+      accessToken,
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    });
+
+    return accessToken;
+  }
+
+  // ============ PoW Challenge ============
+
+  async getChallenge(accessToken, targetPath) {
+    const headers = {
+      ...FAKE_HEADERS,
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await fetch(`${DEEPSEEK_API}/api/v0/chat/create_pow_challenge`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ target_path: targetPath }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data = await response.json();
+    const bizData = data?.data?.biz_data || data?.biz_data;
+    if (!bizData?.challenge) {
+      throw new Error(`Failed to get PoW challenge: ${data?.msg || data?.data?.biz_msg || "no challenge data"}`);
+    }
+
+    return bizData.challenge;
+  }
+
+  async calculateChallengeAnswer(challenge) {
+    const { algorithm, challenge: challengeStr, salt, difficulty, expire_at, signature } = challenge;
+
+    if (algorithm !== "DeepSeekHashV1") {
+      throw new Error(`Unsupported PoW algorithm: ${algorithm}`);
+    }
+
+    const deepSeekHash = await getDeepSeekHash();
+    const answer = deepSeekHash.calculateHash(algorithm, challengeStr, salt, difficulty, expire_at);
+
+    if (answer === undefined) {
+      throw new Error("PoW challenge calculation failed");
+    }
+
+    return Buffer.from(JSON.stringify({
+      algorithm,
+      challenge: challengeStr,
+      salt,
+      answer,
+      signature,
+      target_path: "/api/v0/chat/completion",
+    })).toString("base64");
+  }
+
+  async getPowHeader(accessToken) {
+    try {
+      const challenge = await this.getChallenge(accessToken, "/api/v0/chat/completion");
+      const answer = await this.calculateChallengeAnswer(challenge);
+      return answer;
+    } catch (err) {
+      console.error("[DeepSeek] PoW failed:", err.message);
+      return null;
+    }
   }
 
   // ============ URL Builders ============
@@ -82,189 +210,159 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     return `${DEEPSEEK_API}/api/v0/chat/completion`;
   }
 
-  getChatSessionUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat_session/create`;
-  }
-
-  getDeleteSessionUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat_session/delete`;
-  }
-
-  getHistoryUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat/history_messages`;
-  }
-
-  getFileUploadUrl() {
-    return `${DEEPSEEK_API}/api/v0/file/upload_file`;
-  }
-
-  getFileStatusUrl(fileIds) {
-    return `${DEEPSEEK_API}/api/v0/file/fetch_files?file_ids=${fileIds}`;
-  }
-
-  getSettingsUrl(scope = "model") {
-    return `${DEEPSEEK_API}/api/v0/client/settings?scope=${scope}`;
-  }
-
-  getPowChallengeUrl() {
-    return `${DEEPSEEK_API}/api/v0/chat/create_pow_challenge`;
-  }
-
-  getUserMeUrl() {
-    return `${DEEPSEEK_API}/api/v0/users/me`;
-  }
-
-  getUserSettingsUrl() {
-    return `${DEEPSEEK_API}/api/v0/users/settings`;
-  }
-
-  getSharedConversationsUrl() {
-    return `${DEEPSEEK_API}/api/v0/shared/conversations`;
-  }
-
-  getSharedConversationUrl(id) {
-    return `${DEEPSEEK_API}/api/v0/shared/conversations/${id}`;
-  }
-
-  getCharactersUrl() {
-    return `${DEEPSEEK_API}/api/v0/characters`;
-  }
-
-  getCharacterUrl(id) {
-    return `${DEEPSEEK_API}/api/v0/characters/${id}`;
-  }
-
-  getForkFileUrl() {
-    return `${DEEPSEEK_API}/api/v0/file/fork_file_task`;
-  }
-
   // ============ Header Builders ============
 
-  async buildWebHeaders(credentials) {
-    const headers = {
-      Accept: "text/event-stream",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Content-Type": "application/json",
-      "User-Agent": DEEPSEEK_USER_AGENT,
-      Origin: DEEPSEEK_API,
-      Referer: `${DEEPSEEK_API}/`,
-      "x-client-version": DEEPSEEK_CLIENT_VERSION,
-      "x-client-platform": "web",
-    };
+  buildWebHeaders(credentials, accessToken) {
+    const headers = { ...FAKE_HEADERS };
 
-    if (credentials?.apiKey) {
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    } else if (credentials?.apiKey) {
       headers["Authorization"] = `Bearer ${credentials.apiKey}`;
     }
 
     return headers;
   }
 
-  // ============ Payload Builders ============
+  // ============ Prompt Format ============
+
+  buildPrompt(messages) {
+    const processedMessages = [];
+    for (const msg of messages) {
+      let role = msg.role || "user";
+      let text = "";
+
+      if (typeof msg.content === "string") {
+        text = msg.content;
+      } else if (Array.isArray(msg.content)) {
+        text = msg.content
+          .filter((c) => c.type === "text")
+          .map((c) => c.text || "")
+          .join("\n");
+      }
+
+      if (!text.trim()) continue;
+      processedMessages.push({ role, text });
+    }
+
+    if (processedMessages.length === 0) return "";
+
+    // Merge consecutive same-role messages
+    const merged = [];
+    let current = { ...processedMessages[0] };
+    for (let i = 1; i < processedMessages.length; i++) {
+      const msg = processedMessages[i];
+      if (msg.role === current.role) {
+        current.text += `\n\n${msg.text}`;
+      } else {
+        merged.push(current);
+        current = { ...msg };
+      }
+    }
+    merged.push(current);
+
+    // Format with DeepSeek markers
+    return merged
+      .map((block, index) => {
+        if (block.role === "assistant") {
+          return `<｜Assistant｜>${block.text}<｜end of sentence｜>`;
+        }
+        if (block.role === "user" || block.role === "system") {
+          return index > 0 ? `<｜User｜>${block.text}` : block.text;
+        }
+        if (block.role === "tool") {
+          return `<｜User｜>${block.text}`;
+        }
+        return block.text;
+      })
+      .join("")
+      .replace(/!\[.+\]\(.+\)/g, "");
+  }
+
+  // ============ Payload Builder ============
 
   async buildWebPayload(model, messages, stream, credentials) {
-    const modelInfo = MODEL_MAP[model] || { mode: "chat", name: model };
+    const modelInfo = MODEL_MAP[model] || { modelType: "default", name: model };
     const prompt = this.buildPrompt(messages);
     const sessionId = await this.getOrCreateSession(credentials);
     const parentId = this.getParentMessageId(credentials);
-    
-    // Get PoW response if needed
-    const powResponse = await this.getPowResponse(credentials);
-    
-    const payload = {
-      prompt,
+
+    // Determine search/thinking from model name
+    const modelLower = model.toLowerCase();
+    const searchEnabled = modelLower.includes("search");
+    const thinkingEnabled = modelLower.includes("reasoner") || modelLower.includes("think");
+
+    return {
       chat_session_id: sessionId,
-      parent_message_id: parentId,
-      model: modelInfo.mode,
-      stream: stream ?? false,
-      search_enabled: model.includes("search"),
-      thinking_enabled: model.includes("reasoner"),
+      parent_message_id: null,
+      prompt,
+      model_type: modelInfo.modelType,
       ref_file_ids: [],
+      search_enabled: searchEnabled,
+      thinking_enabled: thinkingEnabled,
+      preempt: false,
     };
-
-    // Add PoW response header
-    if (powResponse) {
-      payload._powResponse = powResponse;
-    }
-
-    return payload;
-  }
-
-  /**
-   * Build prompt from OpenAI messages format
-   */
-  buildPrompt(messages) {
-    const parts = [];
-    for (const msg of messages) {
-      let role = msg.role || "user";
-      let content = "";
-      
-      if (typeof msg.content === "string") {
-        content = msg.content;
-      } else if (Array.isArray(msg.content)) {
-        content = msg.content
-          .filter((c) => c.type === "text")
-          .map((c) => c.text || "")
-          .join(" ");
-      }
-      
-      if (!content.trim()) continue;
-      
-      if (role === "system") {
-        parts.push(`[System] ${content}`);
-      } else if (role === "user") {
-        parts.push(content);
-      } else if (role === "assistant") {
-        parts.push(`[Assistant] ${content}`);
-      } else if (role === "tool") {
-        parts.push(`[Tool Result] ${content}`);
-      }
-    }
-    
-    return parts.join("\n\n");
   }
 
   // ============ Session Management ============
 
   async getOrCreateSession(credentials) {
     const cacheKey = credentials?.apiKey || "default";
-    if (this.sessions.has(cacheKey)) {
-      return this.sessions.get(cacheKey);
+    const cached = this.sessionCache.get(cacheKey);
+    if (cached && Date.now() - cached.createdAt < 300000) {
+      return cached.sessionId;
     }
 
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getChatSessionUrl(), {
+    const accessToken = await this.acquireToken(credentials.apiKey);
+    const headers = {
+      ...FAKE_HEADERS,
+      Authorization: `Bearer ${accessToken}`,
+      Cookie: generateCookie(),
+    };
+
+    const response = await fetch(`${DEEPSEEK_API}/api/v0/chat_session/create`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ agent: "chat" }),
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(15000),
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to create session: ${response.status}`);
+    const data = await response.json();
+
+    // API returns HTTP 200 with error code in body
+    if (data.code !== 0 && data.code !== undefined) {
+      throw new Error(`Failed to create DeepSeek session: ${data.msg || "unknown error"}`);
     }
 
-    const data = await response.json();
-    const sessionId = data.data?.biz_data?.id || data.chat_session_id || data.id;
-    this.sessions.set(cacheKey, sessionId);
-    this.parentMessageIds.set(cacheKey, null);
+    const bizData = data?.data?.biz_data || data?.biz_data;
+    const sessionId = bizData?.chat_session?.id;
+    if (!sessionId) {
+      throw new Error(`Failed to create DeepSeek session: ${data?.msg || data?.data?.biz_msg || "no session id"}`);
+    }
+
+    this.sessionCache.set(cacheKey, { sessionId, createdAt: Date.now() });
     return sessionId;
   }
 
   async deleteSession(credentials, sessionId) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getDeleteSessionUrl(), {
+    const accessToken = await this.acquireToken(credentials.apiKey);
+    const headers = {
+      ...FAKE_HEADERS,
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await fetch(`${DEEPSEEK_API}/api/v0/chat_session/delete`, {
       method: "POST",
       headers,
       body: JSON.stringify({ chat_session_id: sessionId }),
+      signal: AbortSignal.timeout(15000),
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to delete session: ${response.status}`);
+    if (response.ok) {
+      const cacheKey = credentials?.apiKey || "default";
+      this.sessionCache.delete(cacheKey);
     }
-
-    const cacheKey = credentials?.apiKey || "default";
-    this.sessions.delete(cacheKey);
-    this.parentMessageIds.delete(cacheKey);
-    return true;
+    return response.ok;
   }
 
   getParentMessageId(credentials) {
@@ -279,253 +377,14 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
 
   clearSession(credentials) {
     const cacheKey = credentials?.apiKey || "default";
-    this.sessions.delete(cacheKey);
+    this.sessionCache.delete(cacheKey);
     this.parentMessageIds.delete(cacheKey);
-  }
-
-  // ============ History ============
-
-  async getHistory(credentials, sessionId, offset = 0, limit = 20) {
-    const headers = await this.buildWebHeaders(credentials);
-    const url = `${this.getHistoryUrl()}?chat_session_id=${sessionId}&offset=${offset}&limit=${limit}`;
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get history: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ File Operations ============
-
-  async uploadFile(credentials, file) {
-    const headers = await this.buildWebHeaders(credentials);
-    delete headers["Content-Type"]; // Let browser set multipart boundary
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch(this.getFileUploadUrl(), {
-      method: "POST",
-      headers: {
-        Authorization: headers.Authorization,
-        "User-Agent": headers["User-Agent"],
-        Origin: headers.Origin,
-        Referer: headers.Referer,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to upload file: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async getFileStatus(credentials, fileIds) {
-    const headers = await this.buildWebHeaders(credentials);
-    const url = this.getFileStatusUrl(Array.isArray(fileIds) ? fileIds.join(",") : fileIds);
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get file status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ Model Settings ============
-
-  async getModelSettings(credentials) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSettingsUrl("model"), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get model settings: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ User Info ============
-
-  async getUserMe(credentials) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getUserMeUrl(), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get user info: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async getUserSettings(credentials) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getUserSettingsUrl(), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get user settings: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async updateUserSettings(credentials, settings) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getUserSettingsUrl(), {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(settings),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to update user settings: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ Shared Conversations ============
-
-  async listSharedConversations(credentials) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSharedConversationsUrl(), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to list shared conversations: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async getSharedConversation(credentials, conversationId) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSharedConversationUrl(conversationId), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get shared conversation: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async shareConversation(credentials, sessionId) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getSharedConversationsUrl(), {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ chat_session_id: sessionId }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to share conversation: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ Characters ============
-
-  async listCharacters(credentials) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getCharactersUrl(), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to list characters: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async getCharacter(credentials, characterId) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getCharacterUrl(characterId), { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get character: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  async createCharacter(credentials, character) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getCharactersUrl(), {
-      method: "POST",
-      headers,
-      body: JSON.stringify(character),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create character: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ File Operations (Extended) ============
-
-  async forkFile(credentials, fileId, forkType) {
-    const headers = await this.buildWebHeaders(credentials);
-    const response = await fetch(this.getForkFileUrl(), {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ file_id: fileId, fork_type: forkType }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fork file: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.data?.biz_data || data;
-  }
-
-  // ============ PoW (Proof of Work) ============
-
-  async getPowResponse(credentials) {
-    try {
-      const headers = await this.buildWebHeaders(credentials);
-      const response = await fetch(this.getPowChallengeUrl(), {
-        method: "POST",
-        headers,
-        body: JSON.stringify({}),
-      });
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-      const challenge = data.data?.biz_data || data;
-      
-      // In production, solve the PoW challenge here
-      // For now, return the challenge data
-      return challenge;
-    } catch {
-      return null;
-    }
   }
 
   // ============ Main Execute ============
 
   async execute({ model, body, stream, credentials, signal, log }) {
+    this._pendingTools = body?.tools || [];
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return this.errorResponse("Missing or empty messages array", 400);
@@ -539,23 +398,31 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     }
 
     try {
+      // Token exchange first
+      const accessToken = await this.acquireToken(credentials.apiKey);
+
       // Build payload
       const payload = await this.buildWebPayload(model, messages, stream, credentials);
-      
-      // Build headers
-      const headers = await this.buildWebHeaders(credentials);
-      
-      // Add PoW header if available
-      if (payload._powResponse) {
-        headers["x-ds-pow-response"] = JSON.stringify(payload._powResponse);
-        delete payload._powResponse;
+
+      // Build headers with access token
+      const headers = this.buildWebHeaders(credentials, accessToken);
+
+      // Add PoW header
+      const powAnswer = await this.getPowHeader(accessToken);
+      if (powAnswer) {
+        headers["X-Ds-Pow-Response"] = powAnswer;
       }
-      
+
+      // Add session-specific headers
+      const sessionId = payload.chat_session_id;
+      headers["Referer"] = `${DEEPSEEK_API}/a/chat/s/${sessionId}`;
+      headers["Cookie"] = generateCookie();
+
       // Build URL
       const url = this.buildUrl(model, stream, 0, credentials);
-      
-      log?.info?.("DEEPSEEK-WEB", `Request to ${model}, session=${payload.chat_session_id}, endpoint=${url}`);
-      
+
+      log?.info?.("DEEPSEEK-WEB", `Request to ${model}, session=${sessionId}, model_type=${payload.model_type}`);
+
       // Make request
       const response = await fetch(url, {
         method: "POST",
@@ -563,31 +430,37 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
         body: JSON.stringify(payload),
         signal,
       });
-      
+
       // Handle auth errors - clear session and retry once
       if (response.status === 401 || response.status === 403) {
         log?.warn?.("DEEPSEEK-WEB", "Auth failed, clearing session and retrying");
         this.clearSession(credentials);
-        
+
         const newPayload = await this.buildWebPayload(model, messages, stream, credentials);
+        const retryHeaders = this.buildWebHeaders(credentials, accessToken);
+        const retryPow = await this.getPowHeader(accessToken);
+        if (retryPow) retryHeaders["X-Ds-Pow-Response"] = retryPow;
+        retryHeaders["Referer"] = `${DEEPSEEK_API}/a/chat/s/${newPayload.chat_session_id}`;
+        retryHeaders["Cookie"] = generateCookie();
+
         const retryResponse = await fetch(url, {
           method: "POST",
-          headers,
+          headers: retryHeaders,
           body: JSON.stringify(newPayload),
           signal,
         });
-        
+
         if (!retryResponse.ok) {
           return this.handleWebError(retryResponse, retryResponse.status, log);
         }
-        
-        return this.handleResponse(retryResponse, model, newPayload, url, headers, stream, signal, log, credentials);
+
+        return this.handleResponse(retryResponse, model, newPayload, url, retryHeaders, stream, signal, log, credentials);
       }
-      
+
       if (!response.ok) {
         return this.handleWebError(response, response.status, log);
       }
-      
+
       return this.handleResponse(response, model, payload, url, headers, stream, signal, log, credentials);
     } catch (err) {
       log?.error?.("DEEPSEEK-WEB", `Error: ${err.message || String(err)}`);
@@ -601,10 +474,10 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     if (!response.body) {
       return this.errorResponse("Empty response body", 502);
     }
-    
+
     const cid = `chatcmpl-deepseek-web-${crypto.randomUUID().slice(0, 12)}`;
     const created = Math.floor(Date.now() / 1000);
-    
+
     if (stream) {
       const sseStream = this.buildStreamingResponse(response.body, model, cid, created, signal, credentials);
       return {
@@ -634,9 +507,14 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
   buildStreamingResponse(responseBody, model, cid, created, signal, credentials) {
     const encoder = new TextEncoder();
     const self = this;
-    
+    const useToolParser = this._pendingTools?.length > 0;
+    const toolState = useToolParser ? createToolCallState() : null;
+    const baseChunk = useToolParser ? createBaseChunk(cid, model, created) : null;
+    const modelType = useToolParser ? this._getProviderModelType() : "default";
+
     return new ReadableStream({
       async start(controller) {
+        let isFirstContentChunk = true;
         try {
           controller.enqueue(encoder.encode(self.sseChunk({
             id: cid,
@@ -646,7 +524,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
             system_fingerprint: null,
             choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null, logprobs: null }],
           })));
-          
+
           for await (const chunk of self.parseWebStream(responseBody, model, signal)) {
             if (chunk.error) {
               controller.enqueue(encoder.encode(self.sseChunk({
@@ -659,7 +537,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
               })));
               break;
             }
-            
+
             if (chunk.thinking) {
               controller.enqueue(encoder.encode(self.sseChunk({
                 id: cid,
@@ -671,32 +549,48 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
               })));
               continue;
             }
-            
+
             if (chunk.messageId) {
               self.updateParentMessageId(credentials, chunk.messageId);
             }
-            
+
             if (chunk.done) break;
-            
+
             if (chunk.delta) {
-              controller.enqueue(encoder.encode(self.sseChunk({
-                id: cid,
-                object: "chat.completion.chunk",
-                created,
-                model,
-                system_fingerprint: null,
-                choices: [{ index: 0, delta: { content: chunk.delta }, finish_reason: null, logprobs: null }],
-              })));
+              if (useToolParser) {
+                const { chunks: toolChunks } = processStreamContent(chunk.delta, toolState, baseChunk, isFirstContentChunk, modelType);
+                isFirstContentChunk = false;
+                for (const tc of toolChunks) {
+                  controller.enqueue(encoder.encode(self.sseChunk(tc)));
+                }
+              } else {
+                controller.enqueue(encoder.encode(self.sseChunk({
+                  id: cid,
+                  object: "chat.completion.chunk",
+                  created,
+                  model,
+                  system_fingerprint: null,
+                  choices: [{ index: 0, delta: { content: chunk.delta }, finish_reason: null, logprobs: null }],
+                })));
+              }
             }
           }
-          
+
+          if (useToolParser) {
+            const flushChunks = flushToolCallBuffer(toolState, baseChunk, modelType);
+            for (const tc of flushChunks) {
+              controller.enqueue(encoder.encode(self.sseChunk(tc)));
+            }
+          }
+
+          const finishReason = useToolParser && toolState?.hasEmittedToolCall ? "tool_calls" : "stop";
           controller.enqueue(encoder.encode(self.sseChunk({
             id: cid,
             object: "chat.completion.chunk",
             created,
             model,
             system_fingerprint: null,
-            choices: [{ index: 0, delta: {}, finish_reason: "stop", logprobs: null }],
+            choices: [{ index: 0, delta: {}, finish_reason: finishReason, logprobs: null }],
           })));
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (err) {
@@ -720,7 +614,8 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     let fullContent = "";
     const thinkingParts = [];
     let messageId = null;
-    
+    const useToolParser = this._pendingTools?.length > 0;
+
     for await (const chunk of this.parseWebStream(responseBody, model, signal)) {
       if (chunk.error) {
         return new Response(JSON.stringify({
@@ -733,17 +628,28 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
       if (chunk.fullMessage) fullContent = chunk.fullMessage;
       else if (chunk.delta) fullContent += chunk.delta;
     }
-    
+
     if (messageId) {
       this.updateParentMessageId(credentials, messageId);
     }
-    
+
     const msg = { role: "assistant", content: fullContent };
     if (thinkingParts.length > 0) msg.reasoning_content = thinkingParts.join("\n");
-    
+
+    if (useToolParser && fullContent) {
+      const { content: cleanContent, toolCalls } = parseToolCallsFromText(fullContent, this._getProviderModelType());
+      if (toolCalls.length > 0) {
+        return new Response(JSON.stringify({
+          id: cid, object: "chat.completion", created, model, system_fingerprint: null,
+          choices: [{ index: 0, message: { role: "assistant", content: cleanContent || null, tool_calls: toolCalls }, finish_reason: "tool_calls", logprobs: null }],
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+    }
+
     const promptTokens = Math.ceil(fullContent.length / 4);
     const completionTokens = Math.ceil(fullContent.length / 4);
-    
+
     return new Response(JSON.stringify({
       id: cid,
       object: "chat.completion",
@@ -765,35 +671,41 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     const reader = responseBody.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    
+
     try {
       while (true) {
         if (signal?.aborted) return;
         const { value, done } = await reader.read();
         if (done) break;
-        
+
         buffer += decoder.decode(value, { stream: true });
-        
+
         while (true) {
           const eventEnd = buffer.indexOf("\n\n");
           if (eventEnd < 0) break;
-          
+
           const eventBlock = buffer.slice(0, eventEnd);
           buffer = buffer.slice(eventEnd + 2);
-          
+
           let eventData = "";
           for (const line of eventBlock.split("\n")) {
             if (line.startsWith("data: ")) {
               eventData = line.slice(6);
             }
           }
-          
+
           if (!eventData || eventData === "[DONE]") continue;
-          
+
           try {
             const data = JSON.parse(eventData);
-            
-            // DeepSeek choices format
+
+            // Status updates (check before content to avoid yielding "FINISHED" as text)
+            if (data.p === "response/status" && data.v === "FINISHED") {
+              yield { done: true };
+              return;
+            }
+
+            // DeepSeek choices format (OpenAI-compatible)
             if (data.choices && Array.isArray(data.choices)) {
               for (const choice of data.choices) {
                 if (choice.delta?.content) {
@@ -808,45 +720,54 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
                 }
               }
             }
-            
+
             // DeepSeek v0 API format
             if (data.v) {
               if (typeof data.v === "string") {
                 yield { delta: data.v };
               } else if (data.v.response?.message_id) {
                 yield { messageId: data.v.response.message_id };
+                // Extract content from fragments
+                const fragments = data.v.response.fragments || [];
+                for (const frag of fragments) {
+                  if (frag.content) yield { delta: frag.content };
+                }
               }
             }
-            
+
             // Content fragments
             if (data.p === "response/content" || data.o === "APPEND") {
               if (typeof data.v === "string") {
                 yield { delta: data.v };
               }
             }
-            
+
             // Thinking content
             if (data.p === "response/thinking_content") {
               if (typeof data.v === "string") {
                 yield { thinking: data.v };
               }
             }
-            
-            // Status updates
-            if (data.p === "response/status" && data.v === "FINISHED") {
-              yield { done: true };
-              return;
+
+            // Search results - extract citations
+            if (data.p === "response/search_results" && data.v?.results) {
+              const citations = data.v.results
+                .map((r, i) => `[${i + 1}] ${r.title || ""} ${r.url || ""}`.trim())
+                .filter(Boolean);
+              if (citations.length > 0) {
+                yield { delta: "\n\n" + citations.join("\n") };
+              }
             }
-            
+
             // Direct completion
             if (data.completion) {
               yield { delta: data.completion };
             }
-            
+
             if (data.message_id) {
               yield { messageId: data.message_id };
             }
-            
+
             if (data.stop_reason || data.done) {
               yield { done: true };
               return;
@@ -856,7 +777,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
           }
         }
       }
-      
+
       yield { done: true };
     } finally {
       reader.releaseLock();
@@ -864,6 +785,10 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
   }
 
   // ============ Error Handling ============
+
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, this._getProviderModelType());
+  }
 
   handleWebError(response, status, logger) {
     let errMsg = `DeepSeek returned HTTP ${status}`;
@@ -880,7 +805,7 @@ export class DeepSeekWebExecutor extends WebUIExecutor {
     } else if (status === 503) {
       errMsg = "DeepSeek service unavailable — try again later";
     }
-    
+
     logger?.warn?.("DEEPSEEK-WEB", errMsg);
     return this.errorResponse(errMsg, status);
   }

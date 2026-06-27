@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { WebUIExecutor } from "./webui-base.js";
 import { PROVIDERS } from "../config/providers.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
 
 const GROK_CHAT_API = PROVIDERS["grok-web"].baseUrl;
 const GROK_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
@@ -184,6 +185,23 @@ export class GrokWebExecutor extends WebUIExecutor {
       if (resp.token != null) yield { delta: resp.token, fingerprint, responseId };
     }
     yield { done: true, fingerprint, responseId };
+  }
+
+  // ============ Error Handling ============
+
+  /**
+   * Parse tool calls from Grok model output.
+   * Grok has native function calling; managed bracket protocol as fallback.
+   * @param {string} content - Model output text
+   * @param {Array} [tools] - Available tools for validation
+   * @returns {{content: string, toolCalls: Array}}
+   */
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, this._getProviderModelType());
+  }
+
+  _getProviderModelType() {
+    return 'default';
   }
 
   handleWebError(response, status, logger) {

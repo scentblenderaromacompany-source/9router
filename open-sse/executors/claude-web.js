@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { WebUIExecutor } from "./webui-base.js";
 import { PROVIDERS } from "../config/providers.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
 
 const CLAUDE_API = "https://claude.ai";
 const CLAUDE_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -155,6 +156,7 @@ export class ClaudeWebExecutor extends WebUIExecutor {
    * Override execute to handle Claude's specific flow
    */
   async execute({ model, body, stream, credentials, signal, log }) {
+    this._pendingTools = body?.tools || [];
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return this.errorResponse("Missing or empty messages array", 400);
@@ -295,6 +297,23 @@ export class ClaudeWebExecutor extends WebUIExecutor {
     } finally {
       reader.releaseLock();
     }
+  }
+
+  // ============ Error Handling ============
+
+  /**
+   * Parse tool calls from Claude model output.
+   * Claude uses managed XML protocol for tool injection.
+   * @param {string} content - Model output text
+   * @param {Array} [tools] - Available tools for validation
+   * @returns {{content: string, toolCalls: Array}}
+   */
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, this._getProviderModelType());
+  }
+
+  _getProviderModelType() {
+    return 'default';
   }
 
   handleWebError(response, status, logger) {

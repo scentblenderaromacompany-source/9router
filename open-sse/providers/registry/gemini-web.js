@@ -10,7 +10,7 @@ export default {
   priority: 140,
   alias: "gemini-web",
   aliases: ["gmw"],
-  uiAlias: "gw",
+  uiAlias: "gmw",
   display: {
     name: "Gemini Web (Native)",
     icon: "auto_awesome",

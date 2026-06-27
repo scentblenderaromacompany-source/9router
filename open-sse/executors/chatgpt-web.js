@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { WebUIExecutor } from "./webui-base.js";
 import { PROVIDERS } from "../config/providers.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
 
 const CHATGPT_API = "https://chatgpt.com";
 const CHATGPT_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36";
@@ -276,6 +277,23 @@ export class ChatGPTWebExecutor extends WebUIExecutor {
     } finally {
       reader.releaseLock();
     }
+  }
+
+  // ============ Error Handling ============
+
+  /**
+   * Parse tool calls from ChatGPT model output.
+   * ChatGPT has native function calling; managed bracket protocol as fallback.
+   * @param {string} content - Model output text
+   * @param {Array} [tools] - Available tools for validation
+   * @returns {{content: string, toolCalls: Array}}
+   */
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, this._getProviderModelType());
+  }
+
+  _getProviderModelType() {
+    return 'default';
   }
 
   handleWebError(response, status, logger) {

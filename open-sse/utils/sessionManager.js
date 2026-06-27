@@ -5,11 +5,16 @@
  * Mimics the Antigravity binary behavior: generates a session ID at startup
  * and keeps it for the process lifetime, scoped per account/connection.
  *
+ * Also provides persistent per-provider session management with parent message
+ * tracking for multi-turn conversation continuity (DeepSeek, Kimi, etc.).
+ *
  * Reference: antigravity-claude-proxy/src/cloudcode/session-manager.js
  */
 
 import crypto from "crypto";
 import { MEMORY_CONFIG } from "../config/runtimeConfig.js";
+
+// ============ Existing: Runtime session store (prompt caching) ============
 
 // Runtime storage: Key = connectionId, Value = { sessionId, lastUsed }
 const runtimeSessionStore = new Map();
@@ -80,7 +85,10 @@ export function generateBinaryStyleId() {
 export function clearSessionStore() {
     runtimeSessionStore.clear();
     assistantSessionStore.clear();
+    providerSessionStore.clear();
 }
+
+// ============ Existing: Conversation-stable session store ============
 
 // Conversation-stable session store: Key = hash(scope+assistant text), Value = { sessionId, lastUsed }
 const assistantSessionStore = new Map();
@@ -229,3 +237,167 @@ const assistantCleanup = setInterval(() => {
     }
 }, MEMORY_CONFIG.sessionCleanupIntervalMs);
 if (assistantCleanup.unref) assistantCleanup.unref();
+
+// ============ NEW: Per-provider persistent session store ============
+
+/**
+ * Default TTL for provider sessions: 24 hours in milliseconds.
+ */
+const DEFAULT_PROVIDER_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Cleanup interval for expired provider sessions: 60 seconds.
+ */
+const PROVIDER_SESSION_CLEANUP_INTERVAL_MS = 60 * 1000;
+
+/**
+ * Per-provider session store.
+ * Key = `${providerId}::${accountKey}`, Value = SessionContext
+ * @type {Map<string, import("./sessionManager.js").SessionContext>}
+ */
+const providerSessionStore = new Map();
+
+// Periodically evict expired provider sessions
+const providerCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, session] of providerSessionStore) {
+        if (now - session.createdAt > DEFAULT_PROVIDER_SESSION_TTL_MS) {
+            providerSessionStore.delete(key);
+        }
+    }
+}, PROVIDER_SESSION_CLEANUP_INTERVAL_MS);
+if (providerCleanupInterval.unref) providerCleanupInterval.unref();
+
+/**
+ * Build the composite key for per-provider session lookup.
+ *
+ * @param {string} providerId - Provider identifier (e.g. "deepseek-web", "kimi-web")
+ * @param {string} accountKey - Account key (e.g. API key, email, or unique account ID)
+ * @returns {string} Composite key
+ */
+function buildProviderSessionKey(providerId, accountKey) {
+    return `${providerId}::${accountKey}`;
+}
+
+/**
+ * Create a new session context for a provider+account pair.
+ * If an active session already exists, returns the existing one.
+ *
+ * @param {string} providerId - Provider identifier
+ * @param {string} accountKey - Account key
+ * @param {object} [options] - Session creation options
+ * @param {string} [options.sessionId] - External session ID (e.g. from provider API)
+ * @param {string} [options.parentMessageId] - Initial parent message ID
+ * @returns {SessionContext} The created or existing session context
+ */
+export function createSession(providerId, accountKey, options = {}) {
+    const key = buildProviderSessionKey(providerId, accountKey);
+    const existing = providerSessionStore.get(key);
+    if (existing) {
+        existing.isNew = false;
+        return existing;
+    }
+
+    const sessionId = options.sessionId || generateBinaryStyleId();
+    const context = {
+        sessionId,
+        parentMessageId: options.parentMessageId || null,
+        messages: [],
+        isNew: true,
+        createdAt: Date.now(),
+    };
+
+    providerSessionStore.set(key, context);
+    return context;
+}
+
+/**
+ * Get an existing session context for a provider+account pair.
+ *
+ * @param {string} providerId - Provider identifier
+ * @param {string} accountKey - Account key
+ * @returns {SessionContext|null} Session context or null if not found/expired
+ */
+export function getSession(providerId, accountKey) {
+    const key = buildProviderSessionKey(providerId, accountKey);
+    const session = providerSessionStore.get(key);
+    if (!session) return null;
+
+    // Check if expired
+    if (Date.now() - session.createdAt > DEFAULT_PROVIDER_SESSION_TTL_MS) {
+        providerSessionStore.delete(key);
+        return null;
+    }
+
+    return session;
+}
+
+/**
+ * Update an existing session context (add messages, update parentMessageId, etc.).
+ *
+ * @param {string} providerId - Provider identifier
+ * @param {string} accountKey - Account key
+ * @param {object} updates - Fields to merge into the session
+ * @param {string} [updates.sessionId] - Updated external session ID
+ * @param {string} [updates.parentMessageId] - Updated parent message ID
+ * @param {Array<object>} [updates.messages] - Messages to append
+ * @returns {SessionContext|null} Updated session context or null if not found
+ */
+export function updateSession(providerId, accountKey, updates = {}) {
+    const key = buildProviderSessionKey(providerId, accountKey);
+    const session = providerSessionStore.get(key);
+    if (!session) return null;
+
+    if (updates.sessionId !== undefined) {
+        session.sessionId = updates.sessionId;
+    }
+    if (updates.parentMessageId !== undefined) {
+        session.parentMessageId = updates.parentMessageId;
+    }
+    if (Array.isArray(updates.messages) && updates.messages.length > 0) {
+        session.messages.push(...updates.messages);
+    }
+
+    return session;
+}
+
+/**
+ * Delete a session for a provider+account pair.
+ *
+ * @param {string} providerId - Provider identifier
+ * @param {string} accountKey - Account key
+ * @returns {boolean} True if the session was found and deleted
+ */
+export function deleteSession(providerId, accountKey) {
+    const key = buildProviderSessionKey(providerId, accountKey);
+    return providerSessionStore.delete(key);
+}
+
+/**
+ * Get the full session context with parentMessageId for conversation threading.
+ * This is the primary interface for executors that need parent message tracking
+ * (DeepSeek, Kimi, etc.).
+ *
+ * @param {string} providerId - Provider identifier
+ * @param {string} accountKey - Account key
+ * @returns {SessionContext|null} Full session context or null if not found
+ */
+export function getSessionContext(providerId, accountKey) {
+    return getSession(providerId, accountKey);
+}
+
+/**
+ * Clear all provider sessions (useful for testing or explicit reset).
+ */
+export function clearProviderSessionStore() {
+    providerSessionStore.clear();
+}
+
+/**
+ * @typedef {object} SessionContext
+ * @property {string} sessionId - The session identifier
+ * @property {string|null} parentMessageId - Last parent message ID for conversation threading
+ * @property {Array<object>} messages - Accumulated messages in this session
+ * @property {boolean} isNew - Whether this was a freshly created session
+ * @property {number} createdAt - Timestamp when the session was created
+ */

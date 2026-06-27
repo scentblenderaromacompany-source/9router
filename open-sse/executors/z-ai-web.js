@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { WebUIExecutor } from "./webui-base.js";
 import { PROVIDERS } from "../config/providers.js";
+import { parseToolCallsFromText } from "../utils/toolCalling/toolParser.js";
 
 const ZAI_WEB_API = "https://chat.z.ai";
 const ZAI_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36";
@@ -206,6 +207,23 @@ export class ZAIWebExecutor extends WebUIExecutor {
     } finally {
       reader.releaseLock();
     }
+  }
+
+  // ============ Error Handling ============
+
+  /**
+   * Parse tool calls from Z.AI model output.
+   * Z.AI has no native tool support; uses managed bracket protocol.
+   * @param {string} content - Model output text
+   * @param {Array} [tools] - Available tools for validation
+   * @returns {{content: string, toolCalls: Array}}
+   */
+  parseToolCalls(content, tools = []) {
+    return parseToolCallsFromText(content, this._getProviderModelType());
+  }
+
+  _getProviderModelType() {
+    return 'glm';
   }
 
   handleWebError(response, status, logger) {

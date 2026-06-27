@@ -1,5 +1,7 @@
 import { handleChat } from "@/sse/handlers/chat.js";
 import { initTranslators } from "open-sse/translator/index.js";
+import { proxyToChat2Api, resolveChat2ApiProxyConfig } from "@/lib/chat2apiProxy.js";
+import { getProviderConnections, getSettings } from "@/lib/localDb";
 
 let initialized = false;
 
@@ -26,10 +28,17 @@ export async function OPTIONS() {
   });
 }
 
-export async function POST(request) {  
+export async function POST(request) {
+  const settings = await getSettings();
+  const providerConnections = await getProviderConnections();
+  const chat2ApiConfig = await resolveChat2ApiProxyConfig(request.headers, settings, request, providerConnections);
+  if (chat2ApiConfig) {
+    return proxyToChat2Api(request, { config: chat2ApiConfig });
+  }
+
   // Fallback to local handling
   await ensureInitialized();
-  
+
   return await handleChat(request);
 }
 

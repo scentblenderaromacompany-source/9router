@@ -20,6 +20,7 @@ import AddApiKeyModal from "./AddApiKeyModal";
 import EditCompatibleNodeModal from "./EditCompatibleNodeModal";
 import AddCustomModelModal from "./AddCustomModelModal";
 import BulkImportCodexModal from "./BulkImportCodexModal";
+import { getAddConnectionModalConfig } from "./modalConfig";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -120,8 +121,9 @@ export default function ProviderModelsPage() {
     triggerApiKeyConnection();
   };
 
-  const providerInfo = providerNode
-    ? {
+  const providerInfo = useMemo(() => {
+    if (providerNode) {
+      return {
         id: providerNode.id,
         name: providerNode.name || (providerNode.type === "anthropic-compatible" ? "Anthropic Compatible" : "OpenAI Compatible"),
         color: providerNode.type === "anthropic-compatible" ? "#D97757" : "#10A37F",
@@ -129,8 +131,10 @@ export default function ProviderModelsPage() {
         apiType: providerNode.apiType,
         baseUrl: providerNode.baseUrl,
         type: providerNode.type,
-      }
-    : (OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId] || WEB_COOKIE_PROVIDERS[providerId]);
+      };
+    }
+    return OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId] || WEB_COOKIE_PROVIDERS[providerId];
+  }, [providerNode, providerId]);
   const authModes = providerInfo?.authModes || [];
   const isOAuth = !!OAUTH_PROVIDERS[providerId] || (!!FREE_PROVIDERS[providerId] && !!FREE_PROVIDERS[providerId].authModes?.includes?.("oauth")) || authModes.includes("oauth");
   const supportsApiKeyAuth = !!APIKEY_PROVIDERS[providerId] || authModes.includes("apikey");
@@ -150,6 +154,10 @@ export default function ProviderModelsPage() {
   const providerDisplayAlias = isCompatible
     ? (providerNode?.prefix || providerId)
     : providerAlias;
+  const addConnectionModalConfig = useMemo(
+    () => getAddConnectionModalConfig(providerInfo, isCompatible, isAnthropicCompatible),
+    [providerInfo, isCompatible, isAnthropicCompatible]
+  );
 
   const fetchDisabledModels = useCallback(async () => {
     try {
@@ -1427,7 +1435,7 @@ export default function ProviderModelsPage() {
           {connections.length === 0 ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-text-muted">No connections yet</p>
-              <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>Add Connection</Button>
+              <Button size="sm" icon="add" onClick={() => triggerAddConnection()}>Add Connection</Button>
             </div>
           ) : (
             <>
@@ -1593,6 +1601,13 @@ export default function ProviderModelsPage() {
       <AddApiKeyModal
         isOpen={showAddApiKeyModal}
         provider={providerId}
+        providerName={providerInfo?.name || providerInfo?.display?.name || providerId}
+        isCompatible={isCompatible}
+        isAnthropic={isAnthropicCompatible}
+        authType={addConnectionModalConfig.authType}
+        authHint={addConnectionModalConfig.authHint}
+        website={addConnectionModalConfig.website}
+        credentialPlaceholder={addConnectionModalConfig.credentialPlaceholder}
         proxyPools={proxyPools}
         onSave={handleSaveApiKey}
         onClose={() => setShowAddApiKeyModal(false)}
